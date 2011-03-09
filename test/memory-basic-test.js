@@ -56,6 +56,47 @@ vows.describe('Node index/memory basic test').addBatch({
       }, this.callback);
     },
     'should return correct value': function(values) {
+      assert.ok(values.every(function(item) {
+        return item.key == item.value;
+      }));
+    }
+  }
+}).addBatch({
+  'Adding 10k items': {
+    topic: function() {
+      step(function() {
+        var group = this.group();
+
+        for (var i = 0; i < 10000; i++) {
+          I.set('k-' + i, i, group());
+        }
+      }, this.callback);
+    },
+    'should be successfull': function() {
+    }
+  }
+}).addBatch({
+  'Getting 10k items': {
+    topic: function() {
+      step(function() {
+        var group = this.group();
+
+        for (var i = 0; i < 10000; i++) {
+          (function(i, callback) {
+            I.get('k-' + i, function(err, value) {
+              callback(null, {
+                key: i,
+                value: i
+              });
+            });
+          })(i, group());
+        }
+      }, this.callback);
+    },
+    'should return correct values': function(values) {
+      assert.ok(values.every(function(item) {
+        return item.key == item.value;
+      })); 
     }
   }
 }).export(module);
