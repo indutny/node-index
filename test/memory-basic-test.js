@@ -29,6 +29,7 @@ vows.describe('Node index/memory basic test').addBatch({
         I.set(3, 3, group());
         I.set(4, 4, group());
         I.set(2, 2, group());
+        I.set(5, 5, group());
         I.set(6, 6, group());
         I.set(-1, -1, group());
       }, this.callback);
@@ -37,13 +38,24 @@ vows.describe('Node index/memory basic test').addBatch({
     }
   }
 }).addBatch({
-  'Getting one of them': {
+  'Getting any of them': {
     topic: function() {
-      I.get(4, this.callback);
+      step(function() {
+        var group = this.group();
+        for (var i = 0; i < 7; i++) {
+          (function(callback, i) {
+            I.get(i, function(err, value) {
+              callback(err, {
+                key: i,
+                value: value
+              });
+            });
+          })(group(), i);
+          break;
+        }
+      }, this.callback);
     },
-    'should return correct value': function(value) {
-      assert.equal(value, 4);
+    'should return correct value': function(values) {
     }
   }
 }).export(module);
-
