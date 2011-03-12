@@ -6,7 +6,7 @@ var index = require('../lib/index');
 
 var I;
 
-vows.describe('Node index/memory traverse test').addBatch({
+vows.describe('Node index/memory range test').addBatch({
   'Creating new index': {
     topic: function() {
       return index.createIndex();
@@ -31,19 +31,15 @@ vows.describe('Node index/memory traverse test').addBatch({
     }
   }
 }).addBatch({
-  'Traversing through them': {
+  'Getting items in range 500-600': {
     topic: function() {
-      var promise = I.traverse(function(kp, callback) {
-        if (!kp[2] || kp[0] % 2) return callback(null, true);
-
-        callback(null);
-      });
+      var promise = I.rangeGet(500, 600);
 
       var result = true,
           count = 0;
-      promise.on('data', function(value, kp) {
-        count ++;
-        result = result && (value % 2 == 1);
+      promise.on('data', function(value) {
+        count++;
+        result = result && value >= 500 && value <= 600;
       });
 
       var callback = this.callback;
@@ -52,9 +48,9 @@ vows.describe('Node index/memory traverse test').addBatch({
       });
 
     },
-    'should return correct value': function(result) {
+    'should return correct values': function(result) {
       assert.ok(!!result);
-      assert.equal(result, 5000);
+      assert.equal(result, 101);
     }
   }
 }).export(module);
