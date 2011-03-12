@@ -2,17 +2,14 @@ var vows = require('vows'),
     assert = require('assert'),
     step = require('step');
 
-var index = require('../lib/index'),
-    memoryStorage = require('../lib/index/memory-storage');
+var index = require('../lib/index');
 
 var I;
 
 vows.describe('Node index/memory basic test').addBatch({
   'Creating new index': {
     topic: function() {
-      return index.createIndex({
-        storage: memoryStorage.createStorage()
-      });
+      return index.createIndex();
     },
     'should create instance of Index': function(_I) {
       I = _I;
