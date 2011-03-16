@@ -9,7 +9,7 @@ var I;
 
 var items = 10000;
 
-vows.describe('Node index/memory unset test').addBatch({
+vows.describe('Node index/memory compaction test').addBatch({
   'Creating new index': {
     topic: function() {
       return index.createIndex();
