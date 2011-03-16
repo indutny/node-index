@@ -45,16 +45,16 @@ exports.unset = (key, _callback) ->
       page.splice item_index, 1
       if page.length > 0
         # If resulting page isn't empty
-        step((() ->
+        step (() ->
           storage.write page, this.parallel()
-        ), efn(callback))
+        ), efn(callback)
         return
 
       # Notify that item should be removed from parent index
       callback null, false
     else
       # Index page
-      step((() ->
+      step (() ->
         storage.read item[1], this.parallel()
       ), efn((err, page) ->
         iterate page, this.parallel()
@@ -71,12 +71,13 @@ exports.unset = (key, _callback) ->
           callback null
           return
 
-        step((() ->
-          storage.write page, this.parallel()
-        ), efn(callback))
-      ))
+        step (() ->
 
-  step((() ->
+          storage.write page, this.parallel()
+        ), efn(callback)
+      )
+
+  step (() ->
     storage.readRoot this.parallel()
   ), efn((err, root) ->
     iterate root, this.parallel()
@@ -91,5 +92,5 @@ exports.unset = (key, _callback) ->
       callback null
   ), efn((err, position) ->
     storage.writeRoot position, this.parallel()
-  ), callback)
+  ), callback
 
