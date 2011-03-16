@@ -74,19 +74,18 @@ Index.prototype.lock = (fn) ->
   this.locked = true
   false
 
-
 ###
   Release lock functionality
 ###
 Index.prototype.releaseLock = ->
-  if not this.locked
+  unless this.locked
     return
 
   this.locked = false
 
   fn = this.lockQueue.shift()
 
-  if not fn and this.lockQueue.length <= 0
+  unless fn or this.lockQueue.length > 0
     return
 
   process.nextTick fn

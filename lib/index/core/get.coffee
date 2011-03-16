@@ -20,15 +20,12 @@ exports.get = (key, callback) ->
     item = index[item_index]
 
     # Item not found
-    if not item
+    unless item
       return callback 'Not found'
     
     value = item[1]
 
-    if not item[2]
-      # Key Pointer - go further
-      storage.read value, iterate
-    else
+    if item[2]
       # Key Value - return value
       if sort(item[0], key) isnt 0
         return callback 'Not found'
@@ -37,6 +34,9 @@ exports.get = (key, callback) ->
       storage.read value, efn (err, value) ->
         # value = [value, link-to-previous-value]
         callback null, value[0]
+    else
+      # Key Pointer - go further
+      storage.read value, iterate
 
   storage.readRoot iterate
 

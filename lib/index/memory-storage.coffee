@@ -25,7 +25,7 @@ isPosition = Storage.prototype.isPosition = (pos) ->
   return pos instanceof Position
 
 Storage.prototype.read = (pos, callback) ->
-  if not isPosition pos
+  unless isPosition pos
     return callback 'pos should be a valid position'
 
   that = this
@@ -45,7 +45,7 @@ Storage.prototype.readRoot = (callback) ->
     callback null, that.data[that.root_pos.index]
 
 Storage.prototype.writeRoot = (root_pos, callback) ->
-  if not isPosition root_pos
+  unless isPosition root_pos
     return callback 'pos should be a valid position'
 
   that = this

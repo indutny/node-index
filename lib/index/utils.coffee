@@ -9,22 +9,23 @@ utils = exports
 ###
 
 merge = utils.merge = (a, b) ->
-  if not a or not b
-    return a || b || {}
+  unless a and b
+    return a or b or {}
 
   c = {}
   for k,v of  a
-    if not a.hasOwnProperty k
+    unless a.hasOwnProperty k
       continue
     c[k] = v
   
   for k, v of b
-    if not b.hasOwnProperty k
+    unless b.hasOwnProperty k
       continue
 
-    c[k] = typeof c[k] is 'object' ?  c[k] = merge c[k], v :
-                                      v
-    
+    c[k] = if typeof c[k] is 'object'
+             merge c[k], v
+           else
+             v
   c
 
 ###
@@ -51,7 +52,7 @@ utils.search = (index, sort, key) ->
 utils.efn = (callback) ->
   (fn) ->
     # Callback can be empty
-    if not fn
+    unless fn
       fn = -> null
 
     (err) ->

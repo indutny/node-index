@@ -65,7 +65,7 @@ exports.set = (key, value, _callback) ->
       step (->
         # Found dublicate
         if item and sort(item[0], key) is 0
-          if not that.conflictManager
+          unless that.conflictManager
             this.parallel() 'Can\'t insert item w/ dublicate key'
             return
 
@@ -128,8 +128,7 @@ splitPage = (in_leaf, storage, order, page, callback) ->
 
       right_page = page.slice mid_index
 
-      if not in_leaf
-        right_page[0][0] = null
+      right_page[0][0] = null unless in_leaf
 
       storage.write right_page, this.parallel()
     ), ((err, left_page, right_page) ->
