@@ -115,11 +115,11 @@ exports.rangeGet = (start_key, end_key) ->
   promise = new process.EventEmitter
 
   traverse_promise = this.traverse (kp, callback) ->
-    start_cmp = sort(kp[0], start_key)
-    end_cmp = sort(kp[0], end_key)
+    start_cmp = sort kp[0], start_key
+    end_cmp = sort kp[0], end_key
 
     if kp[2]
-      if start_cmp >= 0 && end_cmp <= 0
+      if start_cmp >= 0 and end_cmp <= 0
         return callback null, true
 
       if end_cmp > 0
