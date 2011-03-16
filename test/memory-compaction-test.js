@@ -1,6 +1,7 @@
 var vows = require('vows'),
     assert = require('assert'),
-    step = require('step');
+    step = require('step'),
+    coffee = require('coffee-script');
 
 var index = require('../lib/index');
 

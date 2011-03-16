@@ -33,7 +33,6 @@ vows.describe('Node index/memory basic test').addBatch({
       }, this.callback);
     },
     'should be successfull': function() {
-      I.storage.inspect();
     }
   }
 }).addBatch({
