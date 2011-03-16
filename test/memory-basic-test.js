@@ -1,6 +1,7 @@
 var vows = require('vows'),
     assert = require('assert'),
-    step = require('step');
+    step = require('step'),
+    coffee = require('coffee-script');
 
 var index = require('../lib/index');
 
@@ -32,6 +33,7 @@ vows.describe('Node index/memory basic test').addBatch({
       }, this.callback);
     },
     'should be successfull': function() {
+      I.storage.inspect();
     }
   }
 }).addBatch({
@@ -39,7 +41,7 @@ vows.describe('Node index/memory basic test').addBatch({
     topic: function() {
       step(function() {
         var group = this.group();
-        for (var i = 0; i < 7; i++) {
+        for (var i = -1; i < 7; i++) {
           (function(callback, i) {
             I.get(i, function(err, value) {
               callback(err, {
