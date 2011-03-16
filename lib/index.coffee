@@ -78,7 +78,7 @@ Index.prototype.lock = (fn) ->
 ###
   Release lock functionality
 ###
-Index.prototype.releaseLock = () ->
+Index.prototype.releaseLock = ->
   if not this.locked
     return
 

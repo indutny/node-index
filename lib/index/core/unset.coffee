@@ -10,7 +10,7 @@ exports.unset = (key, _callback) ->
   callback = (err, data) ->
     that.releaseLock()
 
-    process.nextTick () ->
+    process.nextTick ->
       _callback && _callback err, data
 
   efn = utils.efn callback
@@ -18,7 +18,7 @@ exports.unset = (key, _callback) ->
   storage = this.storage
   sort = this.sort
 
-  if this.lock(() -> that.unset key, _callback )
+  if this.lock(-> that.unset key, _callback )
     return
 
   iterate = (page, callback) ->
@@ -45,7 +45,7 @@ exports.unset = (key, _callback) ->
       page.splice item_index, 1
       if page.length > 0
         # If resulting page isn't empty
-        step (() ->
+        step (->
           storage.write page, this.parallel()
         ), efn(callback)
         return
@@ -54,7 +54,7 @@ exports.unset = (key, _callback) ->
       callback null, false
     else
       # Index page
-      step (() ->
+      step (->
         storage.read item[1], this.parallel()
       ), efn((err, page) ->
         iterate page, this.parallel()
@@ -71,13 +71,13 @@ exports.unset = (key, _callback) ->
           callback null
           return
 
-        step (() ->
+        step (->
 
           storage.write page, this.parallel()
         ), efn(callback)
       )
 
-  step (() ->
+  step (->
     storage.readRoot this.parallel()
   ), efn((err, root) ->
     iterate root, this.parallel()

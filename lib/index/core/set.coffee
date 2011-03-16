@@ -15,13 +15,13 @@ exports.set = (key, value, _callback) ->
   order = this.order
   storage = this.storage
 
-  if this.lock(() -> that.set key, value, _callback)
+  if this.lock(-> that.set key, value, _callback)
     return
   
   callback = (err, data) ->
     that.releaseLock()
 
-    process.nextTick () ->
+    process.nextTick ->
       _callback && _callback err, data
   
 
@@ -35,7 +35,7 @@ exports.set = (key, value, _callback) ->
       # Index
 
       # Read next page and try to insert kv in it
-      step (() ->
+      step (->
         storage.read item[1], this.parallel()
       ), efn((err, page) ->
         iterate page, this.parallel()
@@ -62,7 +62,7 @@ exports.set = (key, value, _callback) ->
       )
     else
       # Leaf
-      step (() ->
+      step (->
         # Found dublicate
         if item and sort(item[0], key) is 0
           if not that.conflictManager
@@ -70,7 +70,7 @@ exports.set = (key, value, _callback) ->
             return
 
           # Invoke conflictManager
-          step (() ->
+          step (->
             storage.read item[1], this.parallel()
           ), efn((err, old_value) ->
             this.parallel() null, old_value
@@ -91,7 +91,7 @@ exports.set = (key, value, _callback) ->
         splitPage true, storage, order, page, callback
       )
 
-  step (() ->
+  step (->
     # Read initial data
     storage.readRoot this.parallel()
   ), efn((err, root) ->
@@ -122,7 +122,7 @@ splitPage = (in_leaf, storage, order, page, callback) ->
     mid_key = page[mid_index][0]
 
     # Write splitted pages
-    step (() ->
+    step (->
       left_page = page.slice 0, mid_index
       storage.write left_page, this.parallel()
 

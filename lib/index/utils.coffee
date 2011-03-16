@@ -52,7 +52,7 @@ utils.efn = (callback) ->
   (fn) ->
     # Callback can be empty
     if not fn
-      fn = () -> null
+      fn = -> null
 
     (err) ->
       if err

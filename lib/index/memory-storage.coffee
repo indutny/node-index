@@ -29,19 +29,19 @@ Storage.prototype.read = (pos, callback) ->
     return callback 'pos should be a valid position'
 
   that = this
-  process.nextTick () ->
+  process.nextTick ->
     callback null, that.data[pos.index]
   
 
 Storage.prototype.write = (data, callback) ->
   that = this
   
-  process.nextTick () ->
+  process.nextTick ->
     callback null, new Position(that.data.push(data) - 1)
 
 Storage.prototype.readRoot = (callback) ->
   that = this
-  process.nextTick () ->
+  process.nextTick ->
     callback null, that.data[that.root_pos.index]
 
 Storage.prototype.writeRoot = (root_pos, callback) ->
@@ -49,11 +49,11 @@ Storage.prototype.writeRoot = (root_pos, callback) ->
     return callback 'pos should be a valid position'
 
   that = this
-  process.nextTick () ->
+  process.nextTick ->
     that.root_pos = root_pos
     callback null
 
-Storage.prototype.inspect = () ->
+Storage.prototype.inspect = ->
   this.data.forEach (line, i) ->
     util.puts i + ': ' + JSON.stringify line
 
@@ -63,9 +63,9 @@ Position = exports.Position = (index) ->
   this.index = index
   this
 
-Storage.prototype.beforeCompact = () ->
+Storage.prototype.beforeCompact = ->
   this._compactEdge = this.data.push '--------'
 
-Storage.prototype.afterCompact = () ->
+Storage.prototype.afterCompact = ->
   this.data[i] = 0 for i in [0..this._compactEdge]
 

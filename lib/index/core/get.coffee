@@ -58,7 +58,7 @@ exports.traverse = (filter) ->
   # If no filter were provided - match all
   filter = filter || (kp, callback) -> callback(null, true)
 
-  process.nextTick () ->
+  process.nextTick ->
     efn = utils.efn (err) ->
       promise.emit 'error', err
       promise.emit 'end'
@@ -71,7 +71,7 @@ exports.traverse = (filter) ->
         index = -1
         pagelen = page.length
 
-        asyncFilter = () ->
+        asyncFilter = ->
           if ++index >= pagelen
             if callback
               callback null
@@ -135,7 +135,7 @@ exports.rangeGet = (start_key, end_key) ->
   traverse_promise.on 'data', (value) ->
     promise.emit 'data', value
 
-  traverse_promise.on 'end', () ->
+  traverse_promise.on 'end', ->
     promise.emit 'end'
 
   promise

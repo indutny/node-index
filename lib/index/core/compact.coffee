@@ -19,8 +19,8 @@ exports.compact = (callback) ->
     efn((err, page) ->
       in_leaf = page[0] && page[0][2]
       fns = page.map (item) ->
-        () ->
-          step (() ->
+        ->
+          step (->
             storage.read item[1], this.parallel()
           ), efn((err, data) ->
             if in_leaf
@@ -44,7 +44,7 @@ exports.compact = (callback) ->
       step.apply null, fns
     )
 
-  step (() ->
+  step (->
     storage.readRoot iterate this.parallel()
   ), efn((err, new_root_pos) ->
     storage.writeRoot new_root_pos, this.parallel()
