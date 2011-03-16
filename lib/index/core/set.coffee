@@ -70,16 +70,12 @@ exports.set = (key, value, _callback) ->
             return
 
           # Invoke conflictManager
-          step(
-            () ->
-              storage.read item[1], this.parallel()
-            ,
-            efn((err, old_value) ->
-              this.parallel() null, old_value
-              that.conflictManager old_value, value, this.parallel()
-            ),
-            this.parallel()
-          )
+          step (() ->
+            storage.read item[1], this.parallel()
+          ), efn((err, old_value) ->
+            this.parallel() null, old_value
+            that.conflictManager old_value, value, this.parallel()
+          ), this.parallel()
 
           return
 
