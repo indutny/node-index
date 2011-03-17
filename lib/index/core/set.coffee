@@ -36,11 +36,11 @@ exports.set = (key, value, _callback) ->
   order = @order
   storage = @storage
 
-  if @lock(-> that.set key, value, _callback)
+  if @lock(=> @set key, value, _callback)
     return
   
-  callback = (err, data) ->
-    that.releaseLock()
+  callback = (err, data) =>
+    @releaseLock()
 
     process.nextTick ->
       _callback && _callback err, data
@@ -142,10 +142,10 @@ splitPage = (in_leaf, storage, order, page, callback) ->
 
     # Write splitted pages
     step (->
-      left_page = page.slice 0, mid_index
+      left_page = page[0...mid_index]
       storage.write left_page, @parallel()
 
-      right_page = page.slice mid_index
+      right_page = page[mid_index...]
 
       right_page[0][0] = null unless in_leaf
 

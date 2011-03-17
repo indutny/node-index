@@ -30,7 +30,6 @@ step = require 'step'
   Get value by key
 ###
 exports.get = (key, callback) ->
-  that = @
   sort = @sort
   storage = @storage
   efn = utils.efn callback
@@ -79,13 +78,13 @@ exports.traverse = (filter) ->
   # If no filter were provided - match all
   filter = filter || (kp, callback) -> callback(null, true)
 
-  process.nextTick ->
+  process.nextTick =>
     efn = utils.efn (err) ->
       promise.emit 'error', err
       promise.emit 'end'
     
-    sort = that.sort
-    storage = that.storage
+    sort = @sort
+    storage = @storage
 
     iterate = (callback) ->
       efn (err, page) ->

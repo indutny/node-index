@@ -49,29 +49,23 @@ Storage::read = (pos, callback) ->
   unless isPosition pos
     return callback 'pos should be a valid position'
 
-  that = @
-  process.nextTick ->
-    callback null, that.data[pos.index]
-  
+  process.nextTick =>
+    callback null, @data[pos.index]
 
 Storage::write = (data, callback) ->
-  that = @
-  
-  process.nextTick ->
-    callback null, new Position(that.data.push(data) - 1)
+  process.nextTick =>
+    callback null, new Position(@data.push(data) - 1)
 
 Storage::readRoot = (callback) ->
-  that = @
-  process.nextTick ->
-    callback null, that.data[that.root_pos.index]
+  process.nextTick =>
+    callback null, @data[@root_pos.index]
 
 Storage::writeRoot = (root_pos, callback) ->
   unless isPosition root_pos
     return callback 'pos should be a valid position'
 
-  that = @
-  process.nextTick ->
-    that.root_pos = root_pos
+  process.nextTick =>
+    @root_pos = root_pos
     callback null
 
 Storage::inspect = ->

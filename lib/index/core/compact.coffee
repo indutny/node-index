@@ -28,7 +28,6 @@ step = require 'step'
 utils = require '../../index/utils'
 
 exports.compact = (callback) ->
-  that = @
   storage = @storage
   efn = utils.efn callback
 
