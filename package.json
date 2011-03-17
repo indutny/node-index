@@ -1,5 +1,6 @@
 {
   "name": "index",
+  "description": "...",
   "version": "0.0.1",
 
   "author": "Fedor Indutny <fedor.indutny@gmail.com>",
@@ -8,5 +9,7 @@
     "coffee-script": ">= 1.0.1",
     "step":">= 0.0.4"
   },
-  "engine": ["node >= 0.4.0"]
+  "engine": ["node >= 0.4.0"],
+
+  "main": "./lib.js/index"
 }
