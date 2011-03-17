@@ -14,11 +14,11 @@ exports.unset = (key, _callback) ->
       _callback && _callback err, data
 
   efn = utils.efn callback
-  that = this
-  storage = this.storage
-  sort = this.sort
+  that = @
+  storage = @storage
+  sort = @sort
 
-  if this.lock(-> that.unset key, _callback )
+  if @lock(-> that.unset key, _callback )
     return
 
   iterate = (page, callback) ->
@@ -46,7 +46,7 @@ exports.unset = (key, _callback) ->
       if page.length > 0
         # If resulting page isn't empty
         step (->
-          storage.write page, this.parallel()
+          storage.write page, @parallel()
         ), efn(callback)
         return
 
@@ -55,9 +55,9 @@ exports.unset = (key, _callback) ->
     else
       # Index page
       step (->
-        storage.read item[1], this.parallel()
+        storage.read item[1], @parallel()
       ), efn((err, page) ->
-        iterate page, this.parallel()
+        iterate page, @parallel()
       ), efn((err, result) ->
         if result is false
           # Delete item from index page
@@ -73,24 +73,24 @@ exports.unset = (key, _callback) ->
 
         step (->
 
-          storage.write page, this.parallel()
+          storage.write page, @parallel()
         ), efn(callback)
       )
 
   step (->
-    storage.readRoot this.parallel()
+    storage.readRoot @parallel()
   ), efn((err, root) ->
-    iterate root, this.parallel()
+    iterate root, @parallel()
   ), efn((err, result) ->
     if result is false
       # Create new root
-      storage.write [], this.parallel()
+      storage.write [], @parallel()
     else if storage.isPosition(result)
       # Overwrite old root
-      this.parallel() null, result
+      @parallel() null, result
     else
       callback null
   ), efn((err, position) ->
-    storage.writeRoot position, this.parallel()
+    storage.writeRoot position, @parallel()
   ), callback
 

@@ -7,11 +7,11 @@ step = require 'step'
 utils = require '../../index/utils'
 
 exports.compact = (callback) ->
-  that = this
-  storage = this.storage
+  that = @
+  storage = @storage
   efn = utils.efn callback
 
-  # This will allow storage controller
+  # @will allow storage controller
   # to prepare it for
   storage.beforeCompact && storage.beforeCompact()
 
@@ -21,23 +21,23 @@ exports.compact = (callback) ->
       fns = page.map (item) ->
         ->
           step (->
-            storage.read item[1], this.parallel()
+            storage.read item[1], @parallel()
           ), efn((err, data) ->
             if in_leaf
               # data is actual value
               # remove old revision referense
               data[1] = undefined
-              storage.write data, this.parallel()
+              storage.write data, @parallel()
               return
 
-            iterate(this.parallel()) null, data
+            iterate(@parallel()) null, data
           ), efn((err, new_pos) ->
             item[1] = new_pos
-            this.parallel() null
-          ), this.parallel()
+            @parallel() null
+          ), @parallel()
 
       fns.push(efn (err) ->
-        storage.write page, this.parallel()
+        storage.write page, @parallel()
       )
       fns.push callback
 
@@ -45,12 +45,12 @@ exports.compact = (callback) ->
     )
 
   step (->
-    storage.readRoot iterate this.parallel()
+    storage.readRoot iterate @parallel()
   ), efn((err, new_root_pos) ->
-    storage.writeRoot new_root_pos, this.parallel()
+    storage.writeRoot new_root_pos, @parallel()
   ), efn((err) ->
-    # This will allow storage to finalize all actions
+    # @will allow storage to finalize all actions
     storage.afterCompact && storage.afterCompact()
-    this.parallel() null
+    @parallel() null
   ), callback
 

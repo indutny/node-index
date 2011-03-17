@@ -59,5 +59,5 @@ utils.efn = (callback) ->
       if err
         return callback err
 
-      fn.apply this, arguments
+      fn.apply @, arguments
 

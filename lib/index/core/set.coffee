@@ -10,12 +10,12 @@ utils = require '../../index/utils'
   Set
 ###
 exports.set = (key, value, _callback) ->
-  that = this
-  sort = this.sort
-  order = this.order
-  storage = this.storage
+  that = @
+  sort = @sort
+  order = @order
+  storage = @storage
 
-  if this.lock(-> that.set key, value, _callback)
+  if @lock(-> that.set key, value, _callback)
     return
   
   callback = (err, data) ->
@@ -36,9 +36,9 @@ exports.set = (key, value, _callback) ->
 
       # Read next page and try to insert kv in it
       step (->
-        storage.read item[1], this.parallel()
+        storage.read item[1], @parallel()
       ), efn((err, page) ->
-        iterate page, this.parallel()
+        iterate page, @parallel()
       ), efn((err, result) ->
         if storage.isPosition result
           # Page is just should be overwrited
@@ -46,13 +46,11 @@ exports.set = (key, value, _callback) ->
 
           storage.write page, callback
         else
-          ###
-          Result is = {
-             left_page: [...],
-             middle_key: ...,
-             right_page: [...]
-          }
-          ###
+          #  Result is = {
+          #    left_page: [...],
+          #    middle_key: ...,
+          #    right_page: [...]
+          #  }
 
           page[item_index][1] = result.left_page
           page.splice item_index + 1, 0,
@@ -66,24 +64,24 @@ exports.set = (key, value, _callback) ->
         # Found dublicate
         if item and sort(item[0], key) is 0
           unless that.conflictManager
-            this.parallel() 'Can\'t insert item w/ dublicate key'
+            @parallel() 'Can\'t insert item w/ dublicate key'
             return
 
           # Invoke conflictManager
           step (->
-            storage.read item[1], this.parallel()
+            storage.read item[1], @parallel()
           ), efn((err, old_value) ->
-            this.parallel() null, old_value
-            that.conflictManager old_value, value, this.parallel()
-          ), this.parallel()
+            @parallel() null, old_value
+            that.conflictManager old_value, value, @parallel()
+          ), @parallel()
 
           return
 
-        this.parallel() null, value
+        @parallel() null, value
       ), efn((err, value, old_value) ->
         # Value should be firstly written in storage
         item_index = if item_index is null then 0 else item_index + 1
-        storage.write [value, old_value], this.parallel()
+        storage.write [value, old_value], @parallel()
       ), efn((err, value) ->
         # Than inserted in leaf page
         page.splice item_index, 0, [key, value, 1]
@@ -93,22 +91,22 @@ exports.set = (key, value, _callback) ->
 
   step (->
     # Read initial data
-    storage.readRoot this.parallel()
+    storage.readRoot @parallel()
   ), efn((err, root) ->
     # Initiate sequence
-    iterate root, this.parallel()
+    iterate root, @parallel()
   ), efn((err, result) ->
     if storage.isPosition result
       # Write new root
-      this.parallel() null, result
+      @parallel() null, result
     else
       # Split root
       storage.write [
         [null, result.left_page],
         [result.middle_key, result.right_page]
-      ], this.parallel()
+      ], @parallel()
   ), efn((err, new_root_pos) ->
-    storage.writeRoot new_root_pos, this.parallel()
+    storage.writeRoot new_root_pos, @parallel()
   ), efn(callback)
 
 ###
@@ -124,13 +122,13 @@ splitPage = (in_leaf, storage, order, page, callback) ->
     # Write splitted pages
     step (->
       left_page = page.slice 0, mid_index
-      storage.write left_page, this.parallel()
+      storage.write left_page, @parallel()
 
       right_page = page.slice mid_index
 
       right_page[0][0] = null unless in_leaf
 
-      storage.write right_page, this.parallel()
+      storage.write right_page, @parallel()
     ), ((err, left_page, right_page) ->
       callback err, {
         left_page: left_page,

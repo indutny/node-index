@@ -26,14 +26,14 @@ DEFAULT_OPTIONS =
 Index = exports.Index = (options) ->
   options = utils.merge DEFAULT_OPTIONS, options
   
-  this.order = options.order
-  this.storage = options.storage ||
+  @order = options.order
+  @storage = options.storage ||
                  require('./index/memory-storage').createStorage()
-  this.sort = options.sort
+  @sort = options.sort
   
-  this.lockQueue = []
+  @lockQueue = []
 
-  this
+  @
 
 ###
   Wrapper for class @constructor
@@ -44,48 +44,48 @@ exports.createIndex = (options) ->
 ###
  Get functionality
 ###
-Index.prototype.get = require('./index/core/get').get
-Index.prototype.traverse = require('./index/core/get').traverse
-Index.prototype.rangeGet = require('./index/core/get').rangeGet
+Index::get = require('./index/core/get').get
+Index::traverse = require('./index/core/get').traverse
+Index::rangeGet = require('./index/core/get').rangeGet
 
 ###
   Set functionality
 ###
-Index.prototype.set = require('./index/core/set').set
+Index::set = require('./index/core/set').set
 
 ###
   Unset functionality
 ###
-Index.prototype.unset = require('./index/core/unset').unset
+Index::unset = require('./index/core/unset').unset
 
 ###
   Compaction functionality
 ###
-Index.prototype.compact = require('./index/core/compact').compact
+Index::compact = require('./index/core/compact').compact
 
 ###
   Lock functionality
 ###
-Index.prototype.lock = (fn) ->
-  if this.locked
-    this.lockQueue.push fn
+Index::lock = (fn) ->
+  if @locked
+    @lockQueue.push fn
     return true
 
-  this.locked = true
+  @locked = true
   false
 
 ###
   Release lock functionality
 ###
-Index.prototype.releaseLock = ->
-  unless this.locked
+Index::releaseLock = ->
+  unless @locked
     return
 
-  this.locked = false
+  @locked = false
 
-  fn = this.lockQueue.shift()
+  fn = @lockQueue.shift()
 
-  unless fn or this.lockQueue.length > 0
+  unless fn or @lockQueue.length > 0
     return
 
   process.nextTick fn

@@ -9,9 +9,9 @@ step = require 'step'
   Get value by key
 ###
 exports.get = (key, callback) ->
-  that = this
-  sort = this.sort
-  storage = this.storage
+  that = @
+  sort = @sort
+  storage = @storage
   efn = utils.efn callback
 
   iterate = efn (err, index) ->
@@ -52,7 +52,7 @@ exports.get = (key, callback) ->
 ###
 
 exports.traverse = (filter) ->
-  that = this
+  that = @
   promise = new process.EventEmitter
   
   # If no filter were provided - match all
@@ -111,10 +111,10 @@ exports.traverse = (filter) ->
   Get in range
 ###
 exports.rangeGet = (start_key, end_key) ->
-  sort = this.sort
+  sort = @sort
   promise = new process.EventEmitter
 
-  traverse_promise = this.traverse (kp, callback) ->
+  traverse_promise = @traverse (kp, callback) ->
     start_cmp = sort kp[0], start_key
     end_cmp = sort kp[0], end_key
 
