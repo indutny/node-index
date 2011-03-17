@@ -28,13 +28,8 @@ utils = require './index/utils'
 
 DEFAULT_OPTIONS =
   sort: (a, b) ->
-    if (a is null) or (a < b)
-      -1
-    else
-      if a is b
-        0
-      else
-        1
+    if (a is null) or (a < b) then -1 else
+      if a is b then 0 else 1
   order: 33
 
 
