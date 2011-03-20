@@ -90,6 +90,6 @@ utils.efn = (callback) ->
 utils.hash = (data) ->
   hash = crypto.createHash 'md5'
   hash.update data
-  hash.digest 'binary'
+  hash.digest 'hex'
 
-utils.hash.length = 16
+utils.hash.len = 32

@@ -35,7 +35,8 @@ Buffer = require('buffer').Buffer
 DEFAULT_OPTIONS =
   filename: ''
   padding: 64
-  sizeLimit: 10240
+  sizeLimit: 100000000
+  posBase: 36
 
 ###
   Class @constructor
@@ -47,7 +48,7 @@ Storage = exports.Storage = (options, callback) ->
   unless options.filename
     return callback 'Filename is required'
 
-  {@filename, @padding, @sizeLimit} = options
+  {@posBase, @filename, @padding, @sizeLimit} = options
 
   @openFile (err) =>
     if err
@@ -76,7 +77,7 @@ exports.createStorage = (options, callback) ->
   }
 ###
 Storage::isPosition = isPosition = (pos) ->
-  pos.s and pos.l and ok
+  pos? and pos.s? and pos.l? and true
 
 ###
   Adds index to the end of file
@@ -105,11 +106,11 @@ Storage::openFile = (callback) ->
     return
   ), ((err, exists) ->
     if err
-      callback err
+      @paralell() err
       return
     
     unless exists
-      callback(null)
+      @parallel() null
       return
 
     fs.open filename, 'a+', 0666, @parallel()
@@ -118,7 +119,11 @@ Storage::openFile = (callback) ->
     return
   ), ((err, fd, stat) ->
     if err
-      callback err
+      @parallel() err
+      return
+
+    unless fd and stat
+      @parallel() null
       return
 
     index = that.files.push file
@@ -173,32 +178,38 @@ Storage::createFile = (writeRoot, callback) ->
 ###
 Storage::read = (pos, callback) ->
   unless isPosition pos
-    return callback 'pos should be a valid position'
+    return callback 'pos should be a valid position (read)'
 
-  file = @files[pos.f || 0]
-  buff = new Buffer pos.l
+  s = parseInt pos.s, @posBase
+  l = parseInt pos.l, @posBase
+  f = parseInt pos.f, @posBase
 
-  fs.read file, buff, 0, pos.l, pos.s, (err, bytesRead) ->
+  file = @files[f || 0]
+  buff = new Buffer l
+
+  fs.read file.fd, buff, 0, l, s, (err, bytesRead) ->
     if err
       return callback err
 
-    unless bytesRead == pos.l
+    unless bytesRead == l
       return callback 'Read less bytes than expected'
 
     try
       buff = JSON.parse buff.toString()
       err = null
     catch e
+      console.log buff.toString()
+      console.log buff.length
       err = 'Data is not a valid json'
 
-    callback err buff
+    callback err, buff
 
 ###
   Write data and return position
 ###
 Storage::write = (data, callback) ->
-  data = @convertToBlock data
-  @_fsWrite data, callback
+  {data, length} = @convertToBlock data
+  @_fsWrite data, length, callback
 
 ###
   Read root page
@@ -223,16 +234,16 @@ Storage::readRootPos = (callback) ->
 
     buff = new Buffer @padding
 
-    while offset -= @padding >=0
+    offset = file.size
+    while (offset -= @padding) >= 0
       bytesRead = fs.readSync file.fd, buff, 0, @padding, offset
       unless bytesRead == @padding
         # Header not found
         offset = -1
         break
 
-      if checkHash buff
-        root = buff.slice(utils.hash.length).toString()
-        root = root.split(/\n/, 1)[0]
+      if data = checkHash buff
+        root = data.split('\n', 1)[0]
         try
           root = JSON.parse root
         catch e
@@ -243,30 +254,33 @@ Storage::readRootPos = (callback) ->
         return callback null, root
 
     process.nextTick () ->
-      iterate (index - 1) callback
+      iterate (index - 1), callback
   
   checkHash = (buff) ->
-    hash = buff.slice(0, utils.hash.length).toString()
-    rest = buff.slice(utils.hash.length)
-    hash == utils.hash rest
+    hash = buff.slice(0, utils.hash.len).toString()
+    rest = buff.slice(utils.hash.len)
+    rest.toString() if hash == utils.hash rest
 
-  iterate (@files.length - 1) callback
+  iterate (@files.length - 1), callback
 
 ###
   Write root page
 ###
 Storage::writeRoot = (root_pos, callback) ->
   unless isPosition root_pos
-    return callback 'pos should be a valid position'
+    return callback 'pos should be a valid position (writeRoot)'
 
-  _root_pos = [JSON.stringify root_pos,].join '\n'
+  _root_pos = JSON.stringify root_pos
+  _root_pos_len = Buffer.byteLength _root_pos
+  _padding_len = @padding - _root_pos_len
+  _root_pos = [_root_pos].concat(new Array _padding_len).join ' '
   buff = new Buffer @padding
-  buff.write _root_pos, utils.hash.length
+  buff.write _root_pos, utils.hash.len
 
-  hash = utils.hash buff.slice utils.hash.length
+  hash = utils.hash buff.slice utils.hash.len
   buff.write hash, 0, 'binary'
 
-  @_fsWrite buff, (err) =>
+  @_fsWrite buff, 0, (err) =>
     if err
       return callback err
 
@@ -279,19 +293,19 @@ Storage::writeRoot = (root_pos, callback) ->
 ###
 Storage::convertToBlock = (data) ->
   data = JSON.stringify data
-  length = Buffer.byteLength data
+  original_length = length = Buffer.byteLength data
   length += @padding - length % @padding
   buff = new Buffer length
 
   buff.write data
-  buff
+  data: buff, length: original_length
 
 ###
   Low-level write
 
   buff - is Buffer
 ###
-Storage::_fsWrite = (buff, callback) ->
+Storage::_fsWrite = (buff, length, callback) ->
   file = @currentFile()
   fd = file.fd
   fs.write fd, buff, 0, buff.length, null, (err, bytesWritten) =>
@@ -301,9 +315,9 @@ Storage::_fsWrite = (buff, callback) ->
       return
 
     pos =
-      f: file.index,
-      s: file.size,
-      l: buff.length
+      f: file.index.toString @posBase
+      s: file.size.toString @posBase
+      l: length.toString @posBase
 
     file.size += buff.length
 
