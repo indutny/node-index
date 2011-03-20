@@ -23,7 +23,7 @@
   USE OR OTHER DEALINGS IN THE SOFTWARE.
 ###
 
-util = require 'util'
+utils = require './utils'
 step = require 'step'
 fs = require 'fs'
 path = require 'path'
@@ -35,19 +35,19 @@ Buffer = require('buffer').Buffer
 DEFAULT_OPTIONS =
   filename: ''
   padding: 64
+  sizeLimit: 10240
 
 ###
   Class @constructor
 ###
 Storage = exports.Storage = (options, callback) ->
-  options = utils.merge DEFAULT_OPTIONS options
+  options = utils.merge DEFAULT_OPTIONS, options
   @files = []
 
   unless options.filename
     return callback 'Filename is required'
 
-  @filename = options.filename
-  @padding = options.padding
+  {@filename, @padding, @sizeLimit} = options
 
   @openFile (err) =>
     if err
@@ -99,14 +99,28 @@ Storage::openFile = (callback) ->
   filename = @nextFilename()
 
   step (->
-    path.exists filename, @parallel()
-  ), efn((err, exists) ->
+    _callback = @parallel()
+    path.exists filename, (exists) ->
+      _callback null, exists
+    return
+  ), ((err, exists) ->
+    if err
+      callback err
+      return
+    
     unless exists
-      return callback(null)
+      callback(null)
+      return
 
-    fs.open filename 'a+', 0666, @parallel()
+    fs.open filename, 'a+', 0666, @parallel()
     fs.stat filename, @parallel()
-  ), efn((err, fd, stat) ->
+
+    return
+  ), ((err, fd, stat) ->
+    if err
+      callback err
+      return
+
     index = that.files.push file
     index -= 1
 
@@ -116,13 +130,18 @@ Storage::openFile = (callback) ->
       index: index
 
     that.openFile that.filename @parallel()
-  ), efn(callback)
+    return
+  ), callback
 
 ###
   Create file
 ###
-Storage::createFile = (callback) ->
+Storage::createFile = (writeRoot, callback) ->
   filename = @nextFilename()
+
+  unless callback?
+    callback = writeRoot
+    writeRoot = true
 
   fs.open filename, 'w+', 0666, (err, fd) =>
     if err
@@ -133,8 +152,11 @@ Storage::createFile = (callback) ->
       size: 0
       index: 0
 
-    @files push file
+    @files.push file
 
+    unless writeRoot
+      return callback null, @
+    
     # Write new root
     @write [], (err, pos) =>
       if err
@@ -189,9 +211,46 @@ Storage::readRoot = (callback) ->
 
 ###
   Find last root in files and return it to callback
+
+  it will be synchronous for now
+  TODO: make it asynchronous
 ###
 Storage::readRootPos = (callback) ->
-  fs.read
+  iterate = (index, callback) =>
+    file = @files[index]
+    unless file
+      return callback 'root not found'
+
+    buff = new Buffer @padding
+
+    while offset -= @padding >=0
+      bytesRead = fs.readSync file.fd, buff, 0, @padding, offset
+      unless bytesRead == @padding
+        # Header not found
+        offset = -1
+        break
+
+      if checkHash buff
+        root = buff.slice(utils.hash.length).toString()
+        root = root.split(/\n/, 1)[0]
+        try
+          root = JSON.parse root
+        catch e
+          # Header is not JSON
+          # Try in previous file
+          offset = -1
+          break
+        return callback null, root
+
+    process.nextTick () ->
+      iterate (index - 1) callback
+  
+  checkHash = (buff) ->
+    hash = buff.slice(0, utils.hash.length).toString()
+    rest = buff.slice(utils.hash.length)
+    hash == utils.hash rest
+
+  iterate (@files.length - 1) callback
 
 ###
   Write root page
@@ -202,10 +261,10 @@ Storage::writeRoot = (root_pos, callback) ->
 
   _root_pos = [JSON.stringify root_pos,].join '\n'
   buff = new Buffer @padding
-  buff.write _root_pos, 16
+  buff.write _root_pos, utils.hash.length
 
-  hash = utils.hash buff.slice 16
-  buff.write hash, 'binary'
+  hash = utils.hash buff.slice utils.hash.length
+  buff.write hash, 0, 'binary'
 
   @_fsWrite buff, (err) =>
     if err
@@ -242,13 +301,20 @@ Storage::_fsWrite = (buff, callback) ->
       return
 
     pos =
-      f: @file.index,
-      s: @file.size,
+      f: file.index,
+      s: file.size,
       l: buff.length
 
-    @file.size += buff.length
-    
-    callback null, pos
+    file.size += buff.length
+
+    if file.size > @sizeLimit
+      @createFile false, (err) ->
+        if err
+          return callback err
+
+        callback null, pos
+    else
+      callback null, pos
 
 ###
   Recheck current file's length
