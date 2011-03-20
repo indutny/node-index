@@ -23,6 +23,8 @@
   USE OR OTHER DEALINGS IN THE SOFTWARE.
 ###
 
+crypto = require 'crypto'
+
 utils = exports
 
 ###
@@ -82,3 +84,12 @@ utils.efn = (callback) ->
 
       fn.apply @, arguments
 
+###
+  Hash function wrapper
+###
+utils.hash = (data) ->
+  hash = crypto.createHash 'md5'
+  hash.update data
+  hash.digest 'binary'
+
+utils.hash.length = 16

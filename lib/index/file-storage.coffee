@@ -50,13 +50,14 @@ Storage = exports.Storage = (options, callback) ->
   @padding = options.padding
 
   @openFile (err) =>
-    if err return callback err
+    if err
+      return callback err
 
     if @files.length <= 0
       # If no files - create one
       @createFile callback
     else
-      callback null @
+      callback null, @
 
   # Return instance of self
   @
@@ -81,9 +82,9 @@ Storage::isPosition = isPosition = (pos) ->
   Adds index to the end of file
   and return next (unopened) filename
 ###
-Storage::nextFilename = ->
-  index = @files.length
-  if index > 0 then
+Storage::nextFilename = (i) ->
+  index = i || @files.length
+  if index > 0
     @filename + '.' + index
   else
     @filename
@@ -94,7 +95,6 @@ Storage::nextFilename = ->
 ###
 Storage::openFile = (callback) ->
   that = @
-  efn = utils.efn callback
 
   filename = @nextFilename()
 
@@ -104,13 +104,19 @@ Storage::openFile = (callback) ->
     unless exists
       return callback(null)
 
-    fs.open filename 'a+' 0666 @parallel()
+    fs.open filename 'a+', 0666, @parallel()
     fs.stat filename, @parallel()
   ), efn((err, fd, stat) ->
-    file = fd: fd, size: stat.size
-    that.files.push file
+    index = that.files.push file
+    index -= 1
+
+    file =
+      fd: fd
+      size: stat.size
+      index: index
+
     that.openFile that.filename @parallel()
-  ), callback
+  ), efn(callback)
 
 ###
   Create file
@@ -118,12 +124,27 @@ Storage::openFile = (callback) ->
 Storage::createFile = (callback) ->
   filename = @nextFilename()
 
-  fs.open filename 'w+' 0666 (err, fd) =>
-    if err return callback err
+  fs.open filename, 'w+', 0666, (err, fd) =>
+    if err
+      return callback err
 
-    file = fd: fd, size: 0
+    file =
+      fd: fd
+      size: 0
+      index: 0
+
     @files push file
-    callback null @
+
+    # Write new root
+    @write [], (err, pos) =>
+      if err
+        return callback err
+
+      @writeRoot pos, (err) =>
+        if err
+          return callback err
+
+        callback null, @
 
 ###
   Read data from position
@@ -134,40 +155,43 @@ Storage::read = (pos, callback) ->
 
   file = @files[pos.f || 0]
   buff = new Buffer pos.l
-  efn = utils.efn callback
 
-  fs.read file, buff, 0, pos.l, pos.s, efn((err, bytesRead) ->
+  fs.read file, buff, 0, pos.l, pos.s, (err, bytesRead) ->
+    if err
+      return callback err
+
     unless bytesRead == pos.l
       return callback 'Read less bytes than expected'
+
     try
-      buff = JSON.parse(buff.toString())
+      buff = JSON.parse buff.toString()
       err = null
-    catch
+    catch e
       err = 'Data is not a valid json'
 
     callback err buff
-  )
 
 ###
   Write data and return position
 ###
 Storage::write = (data, callback) ->
-  process.nextTick =>
-    callback null, new Position(@data.push(data) - 1)
+  data = @convertToBlock data
+  @_fsWrite data, callback
 
 ###
   Read root page
 ###
 Storage::readRoot = (callback) ->
   @readRootPos (err, pos) =>
-    if err return callback err
-    @read pos callback
+    if err
+      return callback err
+    @read pos, callback
 
 ###
   Find last root in files and return it to callback
 ###
 Storage::readRootPos = (callback) ->
-  null
+  fs.read
 
 ###
   Write root page
@@ -176,9 +200,74 @@ Storage::writeRoot = (root_pos, callback) ->
   unless isPosition root_pos
     return callback 'pos should be a valid position'
 
-  process.nextTick =>
+  _root_pos = [JSON.stringify root_pos,].join '\n'
+  buff = new Buffer @padding
+  buff.write _root_pos, 16
+
+  hash = utils.hash buff.slice 16
+  buff.write hash, 'binary'
+
+  @_fsWrite buff, (err) =>
+    if err
+      return callback err
+
     @root_pos = root_pos
     callback null
+
+###
+  Add padding to block
+  data should be a JS object
+###
+Storage::convertToBlock = (data) ->
+  data = JSON.stringify data
+  length = Buffer.byteLength data
+  length += @padding - length % @padding
+  buff = new Buffer length
+
+  buff.write data
+  buff
+
+###
+  Low-level write
+
+  buff - is Buffer
+###
+Storage::_fsWrite = (buff, callback) ->
+  file = @currentFile()
+  fd = file.fd
+  fs.write fd, buff, 0, buff.length, null, (err, bytesWritten) =>
+    if err or bytesWritten isnt buff.length
+      @_fsCheckSize (err2) ->
+        callback err2 || err || 'Written less bytes than expected'
+      return
+
+    pos =
+      f: @file.index,
+      s: @file.size,
+      l: buff.length
+
+    @file.size += buff.length
+    
+    callback null, pos
+
+###
+  Recheck current file's length
+###
+Storage::_fsCheckSize = (callback)->
+  file = @currentFile()
+  filename = @nextFilename @file.index
+  fs.stat filename, (err, stat) =>
+    if err
+      return callback err
+    
+    file.size = stat.size
+    callback null
+
+###
+  Current file
+###
+Storage::currentFile = ->
+  @files[@files.length - 1]
 
 ###
   Compaction flow actions
