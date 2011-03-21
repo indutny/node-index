@@ -34,8 +34,8 @@ Buffer = require('buffer').Buffer
 ###
 DEFAULT_OPTIONS =
   filename: ''
-  padding: 128
-  sizeLimit: 100000000
+  padding: 51
+  sizeLimit: 1024 * 1024 * 1024
   posBase: 36
 
 ###
@@ -72,14 +72,14 @@ exports.createStorage = (options, callback) ->
   return new Storage options, callback
 
 ###
-  pos = {
-    f: file-index or undefined
-    s: start-offset,
-    l: length
-  }
+  pos = [
+    start-offset,
+    length
+    file-index or undefined
+  ]
 ###
 Storage::isPosition = isPosition = (pos) ->
-  pos? and pos.s? and pos.l? and true
+  pos? and Array.isArray(pos) and pos.length is 3 and true
 
 ###
   Adds index to the end of file
@@ -182,9 +182,9 @@ Storage::read = (pos, callback) ->
   unless isPosition pos
     return callback 'pos should be a valid position (read)'
 
-  s = parseInt pos.s, @posBase
-  l = parseInt pos.l, @posBase
-  f = parseInt pos.f, @posBase
+  s = parseInt pos[0], @posBase
+  l = parseInt pos[1], @posBase
+  f = parseInt pos[2], @posBase
 
   file = @files[f || 0]
   buff = new Buffer l
@@ -304,10 +304,11 @@ Storage::writeRoot = (root_pos, callback) ->
 Storage::_fsWrite = (buff, callback) ->
   file = @currentFile()
 
-  pos =
-    f: file.index.toString @posBase
-    s: file.size.toString @posBase
-    l: buff.length.toString @posBase
+  pos = [
+    file.size.toString(@posBase),
+    buff.length.toString(@posBase),
+    file.index.toString(@posBase)
+  ]
 
   file.size += buff.length
 

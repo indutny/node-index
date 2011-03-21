@@ -10,7 +10,7 @@ var index = require('../lib/index'),
 var I,
     fileStorage,
     filename = __dirname + '/data/fbt.db',
-    num = 100000;
+    num = 1000;
 
 vows.describe('Node index/memory basic test').addBatch({
   'Creating new file storage': {
@@ -33,7 +33,7 @@ vows.describe('Node index/memory basic test').addBatch({
     topic: function() {
       return index.createIndex({
         storage: fileStorage,
-        order: 17
+        order: 33
       });
     },
     'should create instance of Index': function(_I) {
