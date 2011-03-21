@@ -77,9 +77,11 @@ Storage::inspect = ->
 Position = exports.Position = (@index) ->
   @
 
-Storage::beforeCompact = ->
+Storage::beforeCompact = (callback) ->
   @_compactEdge = @data.push '--------'
+  callback null
 
-Storage::afterCompact = ->
+Storage::afterCompact = (callback) ->
   @data[i] = 0 for i in [0..@_compactEdge]
+  callbcak null
 

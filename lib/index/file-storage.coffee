@@ -132,6 +132,7 @@ Storage::openFile = (callback) ->
     index -= 1
 
     file =
+      filename: filename
       fd: fd
       size: stat.size
       index: index
@@ -155,9 +156,10 @@ Storage::createFile = (writeRoot, callback) ->
       return callback err
 
     file =
+      filename: filename
       fd: fd
       size: 0
-      index: 0
+      index: @files.length
 
     @files.push file
 
@@ -200,8 +202,6 @@ Storage::read = (pos, callback) ->
       buff = JSON.parse buff.toString()
       err = null
     catch e
-      console.log buff.toString()
-      console.log buff.length
       err = 'Data is not a valid json'
 
     callback err, buff
@@ -377,9 +377,28 @@ Storage::currentFile = ->
 ###
   Compaction flow actions
 ###
-Storage::beforeCompact = ->
-  "before compact"
+Storage::beforeCompact = (callback) ->
+  @compact_index = @files.length
+  @createFile false, callback
 
-Storage::afterCompact = ->
-  "after compact"
+Storage::afterCompact = (callback) ->
+  i = 0
+
+  compact_index = @compact_index
+  files = @files
+
+  step (() ->
+    group = @group()
+    while i < compact_index
+      fs.truncate files[i].fd, group()
+      i++
+  ), ((err) ->
+    if err
+      return @parallel() err
+
+    group = @group()
+    while i < compact_index
+      fs.close files[i].fd, group()
+      i++
+  ), callback
 

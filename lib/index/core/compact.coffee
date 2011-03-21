@@ -31,9 +31,8 @@ exports.compact = (callback) ->
   storage = @storage
   efn = utils.efn callback
 
-  # @will allow storage controller
-  # to prepare it for
-  storage.beforeCompact && storage.beforeCompact()
+  if @lock(=> @compact callback)
+    return
 
   iterate = (callback) ->
     efn((err, page) ->
@@ -65,12 +64,17 @@ exports.compact = (callback) ->
     )
 
   step (->
+    # will allow storage controller
+    # to prepare it for
+    storage.beforeCompact && storage.beforeCompact @parallel()
+    @parallel() null
+  ), efn((err) ->
     storage.readRoot iterate @parallel()
   ), efn((err, new_root_pos) ->
     storage.writeRoot new_root_pos, @parallel()
   ), efn((err) ->
     # @will allow storage to finalize all actions
-    storage.afterCompact && storage.afterCompact()
+    storage.afterCompact && storage.afterCompact @parallel()
     @parallel() null
   ), callback
 
