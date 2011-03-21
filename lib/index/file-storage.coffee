@@ -35,7 +35,7 @@ Buffer = require('buffer').Buffer
 DEFAULT_OPTIONS =
   filename: ''
   padding: 51
-  sizeLimit: 1024 * 1024 * 1024
+  partitionSize: 1024 * 1024 * 1024
   posBase: 36
 
 ###
@@ -48,7 +48,7 @@ Storage = exports.Storage = (options, callback) ->
   unless options.filename
     return callback 'Filename is required'
 
-  {@posBase, @filename, @padding, @sizeLimit} = options
+  {@posBase, @filename, @padding, @partitionSize} = options
 
   @buffer = []
 
@@ -137,7 +137,7 @@ Storage::openFile = (callback) ->
       size: stat.size
       index: index
 
-    that.openFile that.filename @parallel()
+    that.openFile @parallel()
     return
   ), callback
 
@@ -349,7 +349,7 @@ Storage::_fsFlush = (callback) ->
         callback err2 or err or 'Written less bytes than expected'
       return
 
-    if file.size > @sizeLimit
+    if file.size >= @partitionSize
       @createFile false, (err) ->
         callback err
     else
@@ -375,6 +375,22 @@ Storage::currentFile = ->
   @files[@files.length - 1]
 
 ###
+  Close all fds
+###
+Storage::close = (callback) ->
+  files = @files
+
+  step (() ->
+    group = @group()
+
+    len = files.length
+    i = 0
+    while i < len
+      fs.close files[i].fd, group()
+      i++
+  ), callback
+
+###
   Compaction flow actions
 ###
 Storage::beforeCompact = (callback) ->
@@ -382,13 +398,12 @@ Storage::beforeCompact = (callback) ->
   @createFile false, callback
 
 Storage::afterCompact = (callback) ->
-  i = 0
-
   compact_index = @compact_index
   files = @files
 
   step (() ->
     group = @group()
+    i = 0
     while i < compact_index
       fs.truncate files[i].fd, group()
       i++
@@ -397,6 +412,7 @@ Storage::afterCompact = (callback) ->
       return @parallel() err
 
     group = @group()
+    i = 0
     while i < compact_index
       fs.close files[i].fd, group()
       i++
