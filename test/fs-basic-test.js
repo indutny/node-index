@@ -32,8 +32,7 @@ vows.describe('Node index/fs basic test').addBatch({
   'Creating new index': {
     topic: function() {
       return index.createIndex({
-        storage: fileStorage,
-        order: 33
+        storage: fileStorage
       });
     },
     'should create instance of Index': function(_I) {

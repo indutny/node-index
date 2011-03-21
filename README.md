@@ -1,7 +1,44 @@
 Node index
 ==========
 
-In progress...
+This module is a implementation of a append-only B+ Tree fully written in 
+[coffee-script](https://github.com/jashkenas/coffee-script coffee-script).
+
+Basics
+------
+
+    // Create basic B+ Tree index that will be stored
+    // in memory (all settings are default, see below)
+    var index = require('index').createIndex();
+
+    // Store value in storage (callback is optional)
+    index.set('key', 'value', function(err) {
+      // ... your code here ...
+    });
+
+    // Get value from storage
+    index.get('key', function(err, value) {
+      // ... your code here ...
+    });
+
+    // Remove value from storage
+    index.unset('key', function(err) {
+    });
+
+Options
+-------
+
+    require('index').createIndex({
+      order: 32, // Maximum number of items in page
+                 // Tree's height depends on that
+      storage: require('index/memory-storage') // Place where all tree data will be stored
+                    .createStorage(),           // (see more description below)
+      sort: function(a, b) {
+        return (a === null || a < b) ? -1 : a == b ? 0 : -1;
+      } // Function that will be used to compare keys
+        // Note that null is a system value and sort should always return negative
+        // result if first argument is null
+    });
 
 License
 -------
