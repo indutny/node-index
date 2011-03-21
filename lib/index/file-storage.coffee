@@ -281,7 +281,7 @@ Storage::writeRoot = (root_pos, callback) ->
   _root_pos = JSON.stringify root_pos
   _root_pos_len = Buffer.byteLength _root_pos
   _padding_len = @rootSize - _root_pos_len
-  _root_pos = [_root_pos].concat(new Array _padding_len).join ' '
+  _root_pos = [_root_pos].concat(new Array _padding_len).join '\n'
   buff = new Buffer @rootSize
   buff.write _root_pos, utils.hash.len
 
