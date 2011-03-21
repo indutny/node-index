@@ -32,7 +32,7 @@ Options
       order: 32, // Maximum number of items in page
                  // Tree's height depends on that
       storage: require('index').storage.memory // Place where all tree data will be stored
-                    .createStorage(),           // (see more description below)
+                    .createStorage(),          // (see more description below)
       sort: function(a, b) {
         return (a === null || a < b) ? -1 : a == b ? 0 : -1;
       } // Function that will be used to compare keys
