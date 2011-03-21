@@ -10,7 +10,8 @@ var index = require('../lib/index'),
 var I,
     fileStorage,
     filename = __dirname + '/data/fldb.db',
-    num = 10000,
+    num = 100000,
+    large_string = new Array(100).join('Eat that french bread carefully!'),
     start,
     end;
 
@@ -19,6 +20,9 @@ vows.describe('Node index/fs basic benchmark').addBatch({
     topic: function() {
       try {
         fs.unlinkSync(filename);
+        for (var i = 1; i < 100; i++) {
+          fs.unlinkSync(filename + '.' + i);
+        }
       } catch (e) {
       }
 
@@ -53,17 +57,7 @@ vows.describe('Node index/fs basic benchmark').addBatch({
         for (var i = 0; i < num; i++) {
           I.set(i, {
             value: i,
-            a: {
-              b: 3,
-              c: {
-                d: 5,
-                e: 6,
-                f: 123
-              }
-            },
-            topics: ['abcbcbsadsgsdaga', 'asdfasdfasdfas', 'asdfasdfsfsa'],
-            keywords: ['asdasda', 'asdasdas', 'asdasdasd'],
-            body: 'aseawoiwhvotiewovitwhaeovitahwoeivhatoweihtvowiehtoviawetov'
+            extended: large_string
           }, group());
         }
       }, this.callback);
@@ -81,7 +75,11 @@ vows.describe('Node index/fs basic benchmark').addBatch({
 
         start = +new Date;
         for (var i = 0; i < num; i++) {
-          I.get(i, group());
+          (function(fn) {
+            I.get(i, function(err) {
+              fn(err);
+            });
+          })(group());
         }
       }, this.callback);
     },

@@ -12,7 +12,7 @@ var I,
     filename = __dirname + '/data/fpt.db',
     num = 10000;
 
-vows.describe('Node index/fs compaction test').addBatch({
+vows.describe('Node index/fs partitioning test').addBatch({
   'Creating new file storage': {
     topic: function() {
       try {
