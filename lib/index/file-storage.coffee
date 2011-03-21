@@ -391,6 +391,16 @@ Storage::close = (callback) ->
   ), callback
 
 ###
+  Storage state
+###
+Storage::getState = () ->
+  padding: @padding
+  posBase: @posBase
+
+Storage::setState = (state) ->
+  {@padding, @posBase} = state
+
+###
   Compaction flow actions
 ###
 Storage::beforeCompact = (callback) ->

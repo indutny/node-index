@@ -77,6 +77,19 @@ Storage::inspect = ->
 Position = exports.Position = (@index) ->
   @
 
+###
+  Storage state
+###
+Storage::getState = ->
+  {}
+
+Storage::setState = (state) ->
+  true
+
+###
+  Compaction flow
+###
+
 Storage::beforeCompact = (callback) ->
   @_compactEdge = @data.push '--------'
   callback null
