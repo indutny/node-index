@@ -34,7 +34,8 @@ Buffer = require('buffer').Buffer
 ###
 DEFAULT_OPTIONS =
   filename: ''
-  padding: 64
+  padding: 32
+  rootSize: 64
   partitionSize: 1024 * 1024 * 1024
   posBase: 36
 
@@ -48,7 +49,7 @@ Storage = exports.Storage = (options, callback) ->
   unless options.filename
     return callback 'Filename is required'
 
-  {@posBase, @filename, @padding, @partitionSize} = options
+  {@posBase, @filename, @padding, @partitionSize, @rootSize} = options
 
   @buffer = []
 
@@ -239,12 +240,12 @@ Storage::readRootPos = (callback) ->
     unless file
       return callback 'root not found'
 
-    buff = new Buffer @padding
+    buff = new Buffer @rootSize
 
-    offset = file.size
+    offset = file.size - @rootSize + @padding
     while (offset -= @padding) >= 0
-      bytesRead = fs.readSync file.fd, buff, 0, @padding, offset
-      unless bytesRead == @padding
+      bytesRead = fs.readSync file.fd, buff, 0, @rootSize, offset
+      unless bytesRead == @rootSize
         # Header not found
         offset = -1
         break
@@ -279,9 +280,9 @@ Storage::writeRoot = (root_pos, callback) ->
 
   _root_pos = JSON.stringify root_pos
   _root_pos_len = Buffer.byteLength _root_pos
-  _padding_len = @padding - _root_pos_len
+  _padding_len = @rootSize - _root_pos_len
   _root_pos = [_root_pos].concat(new Array _padding_len).join ' '
-  buff = new Buffer @padding
+  buff = new Buffer @rootSize
   buff.write _root_pos, utils.hash.len
 
   hash = utils.hash buff.slice utils.hash.len
@@ -395,10 +396,11 @@ Storage::close = (callback) ->
 ###
 Storage::getState = () ->
   padding: @padding
+  rootSize: @rootSize
   posBase: @posBase
 
 Storage::setState = (state) ->
-  {@padding, @posBase} = state
+  {@padding, @posBase, @rootSize} = state
 
 ###
   Compaction flow actions
