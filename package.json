@@ -10,6 +10,7 @@
     "step": ">= 0.0.4",
     "vows": ">= 0.5.8"
   },
+
   "engine": ["node >= 0.4.0"],
 
   "main": "./lib.js/index"
