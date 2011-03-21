@@ -1,6 +1,8 @@
 ###
   Get functionality for Node Index module
 
+  This software is licensed under the MIT License.
+  
   Copyright Fedor Indutny, 2011.
 
   Permission is hereby granted, free of charge, to any person obtaining a
