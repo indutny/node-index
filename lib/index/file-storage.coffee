@@ -34,7 +34,7 @@ Buffer = require('buffer').Buffer
 ###
 DEFAULT_OPTIONS =
   filename: ''
-  padding: 64
+  padding: 128
   sizeLimit: 100000000
   posBase: 36
 
@@ -49,6 +49,8 @@ Storage = exports.Storage = (options, callback) ->
     return callback 'Filename is required'
 
   {@posBase, @filename, @padding, @sizeLimit} = options
+
+  @buffer = []
 
   @openFile (err) =>
     if err
@@ -170,7 +172,7 @@ Storage::createFile = (writeRoot, callback) ->
       @writeRoot pos, (err) =>
         if err
           return callback err
-
+        
         callback null, @
 
 ###
@@ -208,13 +210,18 @@ Storage::read = (pos, callback) ->
   Write data and return position
 ###
 Storage::write = (data, callback) ->
-  {data, length} = @convertToBlock data
-  @_fsWrite data, length, callback
+  data = JSON.stringify data
+  data = new Buffer data
+  @_fsWrite data, callback
 
 ###
   Read root page
 ###
 Storage::readRoot = (callback) ->
+  if @root_pos
+    @read @root_pos, callback
+    return
+
   @readRootPos (err, pos) =>
     if err
       return callback err
@@ -280,55 +287,72 @@ Storage::writeRoot = (root_pos, callback) ->
   hash = utils.hash buff.slice utils.hash.len
   buff.write hash, 0, 'binary'
 
-  @_fsWrite buff, 0, (err) =>
+  @_fsWrite buff, (err) =>
     if err
       return callback err
 
     @root_pos = root_pos
-    callback null
-
-###
-  Add padding to block
-  data should be a JS object
-###
-Storage::convertToBlock = (data) ->
-  data = JSON.stringify data
-  original_length = length = Buffer.byteLength data
-  length += @padding - length % @padding
-  buff = new Buffer length
-
-  buff.write data
-  data: buff, length: original_length
+    @_fsFlush callback
 
 ###
   Low-level write
 
   buff - is Buffer
+  
+  Not writes data, but put it into @buffer
 ###
-Storage::_fsWrite = (buff, length, callback) ->
+Storage::_fsWrite = (buff, callback) ->
+  file = @currentFile()
+
+  pos =
+    f: file.index.toString @posBase
+    s: file.size.toString @posBase
+    l: buff.length.toString @posBase
+
+  file.size += buff.length
+
+  @buffer.push buff
+
+  callback null, pos
+
+###
+  Low-level flush
+###
+Storage::_fsFlush = (callback) ->
   file = @currentFile()
   fd = file.fd
+
+  root = @buffer.pop()
+
+  len = 0
+  @buffer.forEach (buff) ->
+    len += buff.length
+
+  if len % @padding
+    file.size += @padding - (len % @padding)
+    len += @padding - (len % @padding)
+
+  buff = new Buffer (len + root.length)
+
+  @buffer.reduce ((prev, curr) ->
+    curr.copy(buff, prev)
+    prev + curr.length
+  ), 0
+
+  root.copy(buff, len)
+  @buffer = []
+ 
   fs.write fd, buff, 0, buff.length, null, (err, bytesWritten) =>
-    if err or bytesWritten isnt buff.length
+    if err or (bytesWritten isnt buff.length)
       @_fsCheckSize (err2) ->
-        callback err2 || err || 'Written less bytes than expected'
+        callback err2 or err or 'Written less bytes than expected'
       return
-
-    pos =
-      f: file.index.toString @posBase
-      s: file.size.toString @posBase
-      l: length.toString @posBase
-
-    file.size += buff.length
 
     if file.size > @sizeLimit
       @createFile false, (err) ->
-        if err
-          return callback err
-
-        callback null, pos
+        callback err
     else
-      callback null, pos
+      callback null
 
 ###
   Recheck current file's length

@@ -10,7 +10,7 @@ var index = require('../lib/index'),
 var I,
     fileStorage,
     filename = __dirname + '/data/fbt.db',
-    num = 10000;
+    num = 100000;
 
 vows.describe('Node index/memory basic test').addBatch({
   'Creating new file storage': {
