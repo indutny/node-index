@@ -103,3 +103,9 @@ Index::releaseLock = ->
 
   process.nextTick fn
 
+###
+  Export storages
+###
+exports.storage =
+  memory: require('./index/memory-storage'),
+  file: require('./index/file-storage')

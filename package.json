@@ -13,5 +13,9 @@
 
   "engine": ["node >= 0.4.0"],
 
-  "main": "./lib.js/index"
+  "main": "./build/index",
+
+  "scripts": {
+    "install": "cake"
+  }
 }
