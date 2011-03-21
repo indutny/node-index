@@ -10,7 +10,7 @@ var index = require('../lib/index'),
 var I,
     fileStorage,
     filename = __dirname + '/data/frt.db',
-    num = 10000,
+    num = 1000,
     nums = [],
     queue = [];
 
@@ -103,7 +103,6 @@ vows.describe('Node index/fs random test').addBatch({
 
         for (var i = 0; i < 10; i++) {
           setTimeout(function(fn, prefix) {
-            console.log('%d monkey has traveled to the space', prefix);
             run_monkey(prefix + ':', fn);
           }, 10 * i, group(), i);
         }
