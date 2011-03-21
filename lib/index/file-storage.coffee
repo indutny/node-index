@@ -34,7 +34,7 @@ Buffer = require('buffer').Buffer
 ###
 DEFAULT_OPTIONS =
   filename: ''
-  padding: 51
+  padding: 64
   partitionSize: 1024 * 1024 * 1024
   posBase: 36
 
@@ -128,8 +128,7 @@ Storage::openFile = (callback) ->
       @parallel() null
       return
 
-    index = that.files.push file
-    index -= 1
+    index = that.files.length
 
     file =
       filename: filename
@@ -137,6 +136,7 @@ Storage::openFile = (callback) ->
       size: stat.size
       index: index
 
+    that.files.push file
     that.openFile @parallel()
     return
   ), callback
