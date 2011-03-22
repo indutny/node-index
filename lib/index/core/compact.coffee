@@ -29,11 +29,18 @@ step = require 'step'
 
 utils = require '../../index/utils'
 
-exports.compact = (callback) ->
+exports.compact = (_callback) ->
   storage = @storage
+
+  callback = (err, data) =>
+    @releaseLock()
+    
+    process.nextTick ->
+      _callback and _callback err, data
+
   efn = utils.efn callback
 
-  if @lock(=> @compact callback)
+  if @lock(=> @compact _callback)
     return
 
   iterate = (callback) ->

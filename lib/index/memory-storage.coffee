@@ -97,6 +97,6 @@ Storage::beforeCompact = (callback) ->
   callback null
 
 Storage::afterCompact = (callback) ->
-  @data[i] = 0 for i in [0..@_compactEdge]
+  @data[i] = 0 for i in [0...@_compactEdge]
   callback null
 

@@ -45,7 +45,7 @@ exports.set = (key, value, _callback) ->
     @releaseLock()
 
     process.nextTick ->
-      _callback && _callback err, data
+      _callback and _callback err, data
   
 
   efn = utils.efn callback
@@ -58,9 +58,9 @@ exports.set = (key, value, _callback) ->
       # Index
 
       # Read next page and try to insert kv in it
-      step (->
+      step ->
         storage.read item[1], @parallel()
-      ), efn((err, page) ->
+      , efn((err, page) ->
         iterate page, @parallel()
       ), efn((err, result) ->
         if storage.isPosition result
@@ -83,7 +83,7 @@ exports.set = (key, value, _callback) ->
       )
     else
       # Leaf
-      step (->
+      step ->
         # Found dublicate
         if item and sort(item[0], key) is 0
           unless that.conflictManager
@@ -101,7 +101,7 @@ exports.set = (key, value, _callback) ->
           return
 
         @parallel() null, value
-      ), efn((err, value, old_value) ->
+      , efn((err, value, old_value) ->
         # Value should be firstly written in storage
         item_index = if item_index is null then 0 else item_index + 1
         storage.write [value, old_value], @parallel()
@@ -112,10 +112,10 @@ exports.set = (key, value, _callback) ->
         splitPage true, storage, order, page, callback
       )
 
-  step (->
+  step ->
     # Read initial data
     storage.readRoot @parallel()
-  ), efn((err, root) ->
+  , efn((err, root) ->
     # Initiate sequence
     iterate root, @parallel()
   ), efn((err, result) ->
@@ -143,7 +143,7 @@ splitPage = (in_leaf, storage, order, page, callback) ->
     mid_key = page[mid_index][0]
 
     # Write splitted pages
-    step (->
+    step ->
       left_page = page[0...mid_index]
       storage.write left_page, @parallel()
 
@@ -152,13 +152,12 @@ splitPage = (in_leaf, storage, order, page, callback) ->
       right_page[0][0] = null unless in_leaf
 
       storage.write right_page, @parallel()
-    ), ((err, left_page, right_page) ->
+    , (err, left_page, right_page) ->
       callback err, {
         left_page: left_page,
         middle_key: mid_key,
         right_page: right_page
       }
-    )
 
   else
     # Just overwrite it

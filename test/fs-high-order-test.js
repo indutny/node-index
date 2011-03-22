@@ -10,17 +10,9 @@ var helpers = require('./helpers'),
 
 var options = {};
 
-var suite = vows.describe('Node index/fs partition test');
+var suite = vows.describe('Node index/fs basic test');
 
-suite = helpers.fileTest(suite, {}, {
-  filename: __dirname + '/data/fpt.db',
-  partitionSize: 2 * 1024 * 1024
-}, options);
-
-
-helpers.fileTest(suite, {}, {
-  filename: __dirname +'/data/fpt.db',
-  partitionSize: 2 * 1024 * 1024,
-  reopen: true
+helpers.fileTest(suite, {order: 256}, {
+  filename: __dirname + '/data/fht.db'
 }, options).export(module);
 

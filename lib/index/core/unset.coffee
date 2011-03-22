@@ -32,15 +32,15 @@ utils = require '../../index/utils'
 exports.unset = (key, _callback) ->
   callback = (err, data) =>
     @releaseLock()
-
+    
     process.nextTick ->
-      _callback && _callback err, data
+      _callback and _callback err, data
 
   efn = utils.efn callback
   storage = @storage
   sort = @sort
 
-  if @lock(=> @unset key, _callback )
+  if @lock(=> @unset key, _callback)
     return
 
   iterate = (page, callback) ->
@@ -94,7 +94,6 @@ exports.unset = (key, _callback) ->
           return
 
         step (->
-
           storage.write page, @parallel()
         ), efn(callback)
       )
@@ -113,6 +112,9 @@ exports.unset = (key, _callback) ->
     else
       callback null
   ), efn((err, position) ->
-    storage.writeRoot position, @parallel()
+    if storage.isPosition position
+      storage.writeRoot position, @parallel()
+    else
+      @parallel() null
   ), callback
 

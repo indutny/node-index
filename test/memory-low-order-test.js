@@ -9,4 +9,4 @@ var options = {};
 
 var suite = vows.describe('Node index/memory basic test');
 
-helpers.memoryTest(suite, {}, options).export(module);
+helpers.memoryTest(suite, {order: 4}, options).export(module);

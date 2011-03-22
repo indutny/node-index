@@ -386,11 +386,9 @@ Storage::close = (callback) ->
   step (() ->
     group = @group()
 
-    len = files.length
-    i = 0
-    while i < len
-      fs.close files[i].fd, group()
-      i++
+    for i in [0...files.length]
+      if files[i]
+        fs.close files[i].fd, group()
   ), callback
 
 ###
@@ -415,20 +413,18 @@ Storage::afterCompact = (callback) ->
   compact_index = @compact_index
   files = @files
 
-  step (() ->
+  step () ->
     group = @group()
-    i = 0
-    while i < compact_index
-      fs.truncate files[i].fd, group()
-      i++
-  ), ((err) ->
+    for i in [0...compact_index]
+      if files[i]
+        fs.truncate files[i].fd, group()
+  , ((err) ->
     if err
       return @parallel() err
 
     group = @group()
-    i = 0
-    while i < compact_index
-      fs.close files[i].fd, group()
-      i++
+    for i in [0...compact_index]
+      if files[i]
+        fs.close files[i].fd, group()
+        files[i] = undefined
   ), callback
-
