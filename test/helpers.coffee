@@ -64,10 +64,16 @@ exports.consistencyTest = (suite, options) ->
   I = null
   suite
   .addBatch
+    'Unsetting not-existing values from empty tree':
+      topic: ->
+        I = options.I
+        unsetArray I, 'unexist:', unexist, this.callback
+      'should be still successfull': ->
+        return
+  .addBatch
     'Setting':
       'few key-values':
         topic: ->
-          I = options.I
           setArray I, 'few:', few, this.callback
         'should be successfull': ->
           return
