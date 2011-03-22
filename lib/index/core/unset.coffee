@@ -32,7 +32,7 @@ utils = require '../../index/utils'
 exports.unset = (key, _callback) ->
   callback = (err, data) =>
     @releaseLock()
-    
+   
     process.nextTick ->
       _callback and _callback err, data
 
@@ -110,7 +110,7 @@ exports.unset = (key, _callback) ->
       # Overwrite old root
       @parallel() null, result
     else
-      callback null
+      @parallel() null
   ), efn((err, position) ->
     if storage.isPosition position
       storage.writeRoot position, @parallel()

@@ -100,7 +100,7 @@ Index::releaseLock = ->
 
   fn = @lockQueue.shift()
 
-  if not fn? and @lockQueue.length <= 0
+  if not fn and @lockQueue.length <= 0
     return
 
   process.nextTick fn

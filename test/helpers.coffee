@@ -6,9 +6,14 @@ assert = require 'assert'
 index = require '../lib/index'
 
 few = [0, 1, 3, 4, 2, 6, -1]
-many = [1..10000]
-left_half_many = [1..5000]
-right_half_many = [5001..10000]
+
+N = 10000
+half_of_N = N >> 1
+half_of_N_1 = half_of_N + 1
+
+many = [1..N]
+left_half_many = [1..half_of_N]
+right_half_many = [half_of_N_1..N]
 unexist = [1..10]
 
 setArray = (I, prefix, data, callback) ->
