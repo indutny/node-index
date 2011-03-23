@@ -92,6 +92,9 @@ exports.bulk = (kvs, _callback) ->
         kvs.unshift kv
         if page[index + 1]
           kv_index = utils.search kvs, sort, page[index + 1][0]
+
+          if sort(kvs[kv_index][0], page[index + 1][0]) isnt 0
+            kv_index++
           _kvs = kvs.splice 0, kv_index
         else
           _kvs = kvs

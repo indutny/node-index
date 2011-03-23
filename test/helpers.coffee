@@ -7,7 +7,7 @@ index = require '../lib/index'
 
 few = [0, 1, 3, 4, 2, 6, -1]
 
-N = 100
+N = 10000
 half_of_N = N >> 1
 half_of_N_1 = half_of_N + 1
 
