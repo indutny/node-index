@@ -7,7 +7,7 @@ index = require '../lib/index'
 
 few = [0, 1, 3, 4, 2, 6, -1]
 
-N = 1000
+N = 100
 half_of_N = N >> 1
 half_of_N_1 = half_of_N + 1
 
@@ -74,7 +74,7 @@ exports.consistencyTest = (suite, options) ->
     'Unsetting not-existing values from empty tree':
       topic: ->
         I = options.I
-        unsetArray I, 'unexist:', unexist, this.callback
+        unsetArray I, 'unexist:', unexist, @callback
       'should be still successfull': ->
         return
   .addBatch
@@ -82,13 +82,13 @@ exports.consistencyTest = (suite, options) ->
       topic: ->
         I.bulk (bulk.map (i) ->
           ['bulk:' + i, 'bulk:' + i, 1]
-        ), this.callback
+        ), @callback
       'should not have conflicts': (conflicts) ->
         assert.equal conflicts.length, 0
   .addBatch
     'Getting items from that bulk set':
       topic: ->
-        getArray I, 'bulk:', bulk, this.callback
+        getArray I, 'bulk:', bulk, @callback
       'should return right values': (oks) ->
         assert.ok oks.every (ok) -> ok is true
   .addBatch
@@ -96,7 +96,7 @@ exports.consistencyTest = (suite, options) ->
       topic: ->
         I.bulk (bulk.map (i) ->
           ['bulk:' + i, 'bulk:' + i, 1]
-        ), this.callback
+        ), @callback
       'should have conflicts': (conflicts) ->
         assert.equal conflicts.length, bulk.length
   .addBatch
@@ -104,13 +104,13 @@ exports.consistencyTest = (suite, options) ->
       topic: ->
         I.bulk (bulk.map (i) ->
           ['bulk:' + i]
-        ), this.callback
+        ), @callback
       'should be successfull': ->
         return
   .addBatch
     'Getting items from that bulk set':
       topic: ->
-        notgetArray I, 'bulk:', bulk, this.callback
+        notgetArray I, 'bulk:', bulk, @callback
       'should not return right values': (oks) ->
         assert.ok oks.every (ok) -> ok isnt true
   .addBatch
@@ -121,7 +121,7 @@ exports.consistencyTest = (suite, options) ->
                   i % 2
                 .map (i) ->
                   ['bulk:' + i, 'bulk:' + i, 1]
-                ), this.callback
+                ), @callback
       'should have no conflicts': (conflicts) ->
         assert.equal conflicts.length, 0
   .addBatch
@@ -132,15 +132,15 @@ exports.consistencyTest = (suite, options) ->
             ['bulk:' + i]
           else
             ['bulk:' + i, 'bulk:' + i, 1]
-        ), this.callback
+        ), @callback
       'should have no conflicts': (conflicts) ->
-        assert.equal conflicts.lentgh, 0
+        assert.equal conflicts.length, 0
   .addBatch
     'Getting items from half of bulk set':
       topic: ->
         getArray I, 'bulk:', bulk.filter (i) ->
           i % 2 == 1
-        , this.callback
+        , @callback
       'should return right values': (oks) ->
         assert.ok oks.every (ok) -> ok is true
   .addBatch
@@ -148,7 +148,7 @@ exports.consistencyTest = (suite, options) ->
       topic: ->
         notgetArray I, 'bulk:', bulk.filter (i) ->
           i % 2
-        , this.callback
+        , @callback
       'should not return right values': (oks) ->
         assert.ok oks.every (ok) -> ok isnt true
   .addBatch
@@ -159,107 +159,107 @@ exports.consistencyTest = (suite, options) ->
                   i % 2 == 1
                 .map (i) ->
                   ['bulk:' + i]
-                ), this.callback
+                ), @callback
       'should have no conflicts': (conflicts) ->
         assert.equal conflicts.length, 0
   .addBatch
     'Setting':
       'few key-values':
         topic: ->
-          setArray I, 'few:', few, this.callback
+          setArray I, 'few:', few, @callback
         'should be successfull': ->
           return
       'many values':
         topic: ->
-          setArray I, 'many:', many, this.callback
+          setArray I, 'many:', many, @callback
         'should be successfull': ->
           return
   .addBatch
     'Getting':
       'few key-values':
         topic: ->
-          getArray I, 'few:', few, this.callback
+          getArray I, 'few:', few, @callback
         'should return right values': (oks) ->
           assert.ok oks.every (ok) -> ok is true
       'many values':
         topic: ->
-          getArray I, 'many:', many, this.callback
+          getArray I, 'many:', many, @callback
         'should return right values': (oks) ->
           assert.ok oks.every (ok) -> ok is true
   .addBatch
     'Running compaction':
       topic: ->
-        I.compact this.callback
+        I.compact @callback
       'should be successfull': ->
         return
   .addBatch
     'Getting few key-values':
       topic: ->
-        getArray I, 'few:', few, this.callback
+        getArray I, 'few:', few, @callback
       'should return right values': (oks) ->
         assert.ok oks.every (ok) -> ok is true
     'Getting many key-values':
       topic: ->
-        getArray I, 'many:', many, this.callback
+        getArray I, 'many:', many, @callback
       'should return right values': (oks) ->
         assert.ok oks.every (ok) -> ok is true
   .addBatch
     'Unsetting half of values':
       topic: ->
-        unsetArray I, 'many:', left_half_many, this.callback
+        unsetArray I, 'many:', left_half_many, @callback
       'should be successfull': ->
         return
   .addBatch
     'Getting values from that half':
       topic: ->
-        notgetArray I, 'many:', left_half_many, this.callback
+        notgetArray I, 'many:', left_half_many, @callback
       'should be not successfull': (oks) ->
         assert.ok oks.every (ok) -> ok isnt true
     'Getting values from another half':
       topic: ->
-        getArray I, 'many:', right_half_many, this.callback
+        getArray I, 'many:', right_half_many, @callback
       'should be successfull': (oks) ->
         assert.ok oks.every (ok) -> ok is true
   .addBatch
     'Unsetting another half of values':
       topic: ->
-        unsetArray I, 'many:', right_half_many, this.callback
+        unsetArray I, 'many:', right_half_many, @callback
       'should be successfull': ->
         return
   .addBatch
     'Getting any value from unsetted':
       topic: ->
-        notgetArray I, 'many:', many, this.callback
+        notgetArray I, 'many:', many, @callback
       'should be not successfull': (oks) ->
         assert.ok oks.every (ok) -> ok isnt true
   .addBatch
     'Inserting those values again':
       topic: ->
-        setArray I, 'many:', many, this.callback
+        setArray I, 'many:', many, @callback
       'should be successfull': ->
         return
   .addBatch
     'Getting any of them':
       topic: ->
-        getArray I, 'many:', many, this.callback
+        getArray I, 'many:', many, @callback
       'should return right values': (oks) ->
         assert.ok oks.every (ok) -> ok is true
   .addBatch
     'Running compaction again':
       topic: ->
-        I.compact this.callback
+        I.compact @callback
       'should be successfull': ->
         return
   .addBatch
     'And all values':
       topic: ->
-        getArray I, 'many:', many, this.callback
+        getArray I, 'many:', many, @callback
       'should be in place': (oks) ->
         assert.ok oks.every (ok) -> ok is true
   .addBatch
     'Unsetting non-existant values':
       topic: ->
-        unsetArray I, 'unexist', unexist, this.callback
+        unsetArray I, 'unexist', unexist, @callback
       'should be still successfull': ->
         return
 
@@ -280,7 +280,7 @@ exports.fileTest = (suite, index_options, fs_options, options) ->
     .addBatch
       'Closing fds for old storage':
         topic: ->
-          options.I.storage.close this.callback
+          options.I.storage.close @callback
         'should be successfull': ->
           return
 
@@ -296,7 +296,7 @@ exports.fileTest = (suite, index_options, fs_options, options) ->
             fs.unlinkSync (fs_options.filename + '.' + i) for i in [1..300]
           catch err
             true
-        index.storage.file.createStorage fs_options, this.callback
+        index.storage.file.createStorage fs_options, @callback
         return
       'should be successfull': (storage) ->
         index_options.storage = storage
@@ -314,12 +314,12 @@ exports.fileTest = (suite, index_options, fs_options, options) ->
       'Unsetting all old values':
         'many':
           topic: ->
-            unsetArray options.I, 'many:', many, this.callback
+            unsetArray options.I, 'many:', many, @callback
           'should be successfull': ->
             return
         'few':
           topic: ->
-            unsetArray options.I, 'few:', few, this.callback
+            unsetArray options.I, 'few:', few, @callback
           'should be successfull': ->
             return
 
