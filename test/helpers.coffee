@@ -1,5 +1,6 @@
 step = require 'step'
 fs = require 'fs'
+path = require 'path'
 vows = require 'vows'
 assert = require 'assert'
 
@@ -280,7 +281,8 @@ exports.memoryTest = (suite, index_options, options) ->
   exports.consistencyTest suite, options
 
 exports.fileTest = (suite, index_options, fs_options, options) ->
-  if fs_options.reopen
+  reopen = options.reopen
+  if reopen
     suite = suite
     .addBatch
       'Closing fds for old storage':
@@ -293,14 +295,31 @@ exports.fileTest = (suite, index_options, fs_options, options) ->
   .addBatch
     'Creating new file-storage':
       topic: ->
-        if fs_options.reopen
-          delete fs_options.reopen
-        else
+        if not reopen
           try
             fs.unlinkSync fs_options.filename
             fs.unlinkSync (fs_options.filename + '.' + i) for i in [1..300]
           catch err
             true
+        else
+          # write few bytes to the end of file
+          # (emulate) data corruption)
+
+          getFilename = (i) ->
+            fs_options.filename + if i then '.' + i else ''
+
+          i = 0
+          while path.existsSync getFilename i
+            i++
+          i--
+
+          fd = fs.openSync (getFilename i), 'a+'
+
+          buff = new Buffer '$$$random'
+          fs.writeSync fd, buff, 0, buff.length, null
+
+          fs.closeSync fd
+
         index.storage.file.createStorage fs_options, @callback
         return
       'should be successfull': (storage) ->
@@ -313,7 +332,7 @@ exports.fileTest = (suite, index_options, fs_options, options) ->
         options.I = I
         assert.instanceOf I, index.Index
 
-  if fs_options.reopen
+  if reopen
     suite = suite
     .addBatch
       'Unsetting all old values':

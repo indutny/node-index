@@ -16,8 +16,9 @@ helpers.fileTest(suite, {}, {
   filename: __dirname + '/data/fbt.db'
 }, options);
 
+options.reopen = true;
+
 helpers.fileTest(suite, {}, {
   filename: __dirname +'/data/fbt.db',
-  reopen: true
 }, options).export(module);
 

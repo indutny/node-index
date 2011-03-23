@@ -102,14 +102,16 @@ Storage::nextFilename = (i) ->
 Storage::openFile = (callback) ->
   that = @
 
+  padding = @padding
   filename = @nextFilename()
+  file = {}
 
-  step (->
+  step ->
     _callback = @parallel()
     path.exists filename, (exists) ->
       _callback null, exists
     return
-  ), ((err, exists) ->
+  , (err, exists) ->
     if err
       @paralell() err
       return
@@ -122,7 +124,7 @@ Storage::openFile = (callback) ->
     fs.stat filename, @parallel()
 
     return
-  ), ((err, fd, stat) ->
+  , (err, fd, stat) ->
     if err
       @parallel() err
       return
@@ -133,16 +135,41 @@ Storage::openFile = (callback) ->
 
     index = that.files.length
 
+    
     file =
       filename: filename
       fd: fd
       size: stat.size
       index: index
 
+    if file.size % padding
+      paddBuff = new Buffer padding - file.size % padding
+      console.log paddBuff.length
+      fs.write fd, paddBuff, 0, paddBuff.length,
+               null, @parallel()
+    else
+      @parallel() null, 0
+
+    @parallel() null, file
+
     that.files.push file
-    that.openFile @parallel()
+
     return
-  ), callback
+  , (err, bytesWritten, file) ->
+    if err
+      @parallel() err
+      return
+
+    if bytesWritten?
+      if file.size % padding
+        if bytesWritten != padding - file.size % padding
+          @parallel() 'Can\'t add padding to db file'
+          return
+        file.size += padding - file.size % padding
+      that.openFile @parallel()
+    else
+      @parallel() null
+  , callback
 
 ###
   Create file
@@ -247,7 +274,11 @@ Storage::readRootPos = (callback) ->
 
     buff = new Buffer @rootSize
 
-    offset = file.size - @rootSize + @padding
+    # If file has incorrect size (unpadded)
+    # Substract difference from its size
+    # B/c root can't be in that unpadded area
+    offset = file.size - (file.size % @padding) -
+             @rootSize + @padding
     while (offset -= @padding) >= 0
       bytesRead = fs.readSync file.fd, buff, 0, @rootSize, offset
       unless bytesRead == @rootSize
@@ -387,13 +418,13 @@ Storage::currentFile = ->
 Storage::close = (callback) ->
   files = @files
 
-  step (() ->
+  step () ->
     group = @group()
 
     for i in [0...files.length]
       if files[i]
         fs.close files[i].fd, group()
-  ), callback
+  , callback
 
 ###
   Storage state
@@ -422,7 +453,7 @@ Storage::afterCompact = (callback) ->
     for i in [0...compact_index]
       if files[i]
         fs.truncate files[i].fd, group()
-  , ((err) ->
+  , (err) ->
     if err
       return @parallel() err
 
@@ -431,4 +462,4 @@ Storage::afterCompact = (callback) ->
       if files[i]
         fs.close files[i].fd, group()
         files[i] = undefined
-  ), callback
+  , callback

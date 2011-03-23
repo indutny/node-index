@@ -17,10 +17,10 @@ suite = helpers.fileTest(suite, {}, {
   partitionSize: 2 * 1024 * 1024
 }, options);
 
+options.reopen = true;
 
 helpers.fileTest(suite, {}, {
   filename: __dirname +'/data/fpt.db',
-  partitionSize: 2 * 1024 * 1024,
-  reopen: true
+  partitionSize: 2 * 1024 * 1024
 }, options).export(module);
 
