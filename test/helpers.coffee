@@ -116,50 +116,51 @@ exports.consistencyTest = (suite, options) ->
   .addBatch
     'Running bulk insertion for half':
       topic: ->
-        I.bulk (bulk
-                .filter (i) ->
-                  i % 2
-                .map (i) ->
-                  ['bulk:' + i, 'bulk:' + i, 1]
-                ), @callback
+        arr = bulk.filter (i) -> i % 2
+        arr = arr.map (i) -> ['bulk:' + i, 'bulk:' + i, 1]
+
+        I.bulk arr, @callback
       'should have no conflicts': (conflicts) ->
         assert.equal conflicts.length, 0
   .addBatch
     'Running bulk mixed action (insertion/removal)':
       topic: ->
-        I.bulk (bulk.map (i) ->
+        arr = bulk.map (i) ->
           if i % 2
             ['bulk:' + i]
           else
             ['bulk:' + i, 'bulk:' + i, 1]
-        ), @callback
+
+        I.bulk arr, @callback
       'should have no conflicts': (conflicts) ->
         assert.equal conflicts.length, 0
   .addBatch
     'Getting items from half of bulk set':
       topic: ->
-        getArray I, 'bulk:', bulk.filter (i) ->
-          i % 2 == 1
-        , @callback
+        arr = bulk.filter (i) ->
+          i % 2
+
+        getArray I, 'bulk:', arr, @callback
       'should return right values': (oks) ->
         assert.ok oks.every (ok) -> ok is true
   .addBatch
     'Getting items from another half of bulk set':
       topic: ->
-        notgetArray I, 'bulk:', bulk.filter (i) ->
+        arr = bulk.filter (i) ->
           i % 2
-        , @callback
+
+        notgetArray I, 'bulk:', arr, @callback
       'should not return right values': (oks) ->
         assert.ok oks.every (ok) -> ok isnt true
   .addBatch
     'Running bulk removal for another half':
       topic: ->
-        I.bulk (bulk
-                .filter (i) ->
-                  i % 2 == 1
-                .map (i) ->
-                  ['bulk:' + i]
-                ), @callback
+        arr = bulk.filter (i) ->
+          i % 2 == 1
+        arr = arr.map (i) ->
+          ['bulk:' + i]
+
+        I.bulk arr, @callback
       'should have no conflicts': (conflicts) ->
         assert.equal conflicts.length, 0
   .addBatch
