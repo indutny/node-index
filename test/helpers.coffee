@@ -138,7 +138,7 @@ exports.consistencyTest = (suite, options) ->
     'Getting items from half of bulk set':
       topic: ->
         arr = bulk.filter (i) ->
-          i % 2
+          i % 2 == 0
 
         getArray I, 'bulk:', arr, @callback
       'should return right values': (oks) ->
