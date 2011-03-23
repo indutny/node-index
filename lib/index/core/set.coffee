@@ -48,8 +48,6 @@ exports.set = (key, value, _callback) ->
       _callback and _callback err, data
   
 
-  efn = utils.efn callback
-
   iterate = (page, callback) ->
     item_index = utils.search page, sort, key
     item = page[item_index]
@@ -60,9 +58,15 @@ exports.set = (key, value, _callback) ->
       # Read next page and try to insert kv in it
       step ->
         storage.read item[1], @parallel()
-      , efn((err, page) ->
+      , (err, page) ->
+        if err
+          return @parallel() err
+
         iterate page, @parallel()
-      ), efn((err, result) ->
+      , (err, result) ->
+        if err
+          return @parallel() err
+
         if storage.isPosition result
           # Page is just should be overwrited
           page[item_index][1] = result
@@ -80,7 +84,7 @@ exports.set = (key, value, _callback) ->
                       [result.middle_key, result.right_page]
 
           splitPage false, storage, order, page, callback
-      )
+      
     else
       # Leaf
       step ->
@@ -91,34 +95,49 @@ exports.set = (key, value, _callback) ->
             return
 
           # Invoke conflictManager
-          step (->
+          step ->
             storage.read item[1], @parallel()
-          ), efn((err, old_value) ->
+          , (err, old_value) ->
+            if err
+              return @parallel() err
+
             @parallel() null, old_value
             that.conflictManager old_value, value, @parallel()
-          ), @parallel()
+          , @parallel()
 
           return
 
         @parallel() null, value
-      , efn((err, value, old_value) ->
+      , (err, value, old_value) ->
+        if err
+          return @parallel() err
+
         # Value should be firstly written in storage
         item_index = if item_index is null then 0 else item_index + 1
         storage.write [value, old_value], @parallel()
-      ), efn((err, value) ->
+      , (err, value) ->
+        if err
+          return @parallel() err
+
         # Than inserted in leaf page
         page.splice item_index, 0, [key, value, 1]
 
         splitPage true, storage, order, page, callback
-      )
+      
 
   step ->
     # Read initial data
     storage.readRoot @parallel()
-  , efn((err, root) ->
+  , (err, root) ->
+    if err
+      return @parallel() err
+
     # Initiate sequence
     iterate root, @parallel()
-  ), efn((err, result) ->
+  , (err, result) ->
+    if err
+      return @parallel() err
+
     if storage.isPosition result
       # Write new root
       @parallel() null, result
@@ -128,9 +147,12 @@ exports.set = (key, value, _callback) ->
         [null, result.left_page],
         [result.middle_key, result.right_page]
       ], @parallel()
-  ), efn((err, new_root_pos) ->
+  , (err, new_root_pos) ->
+    if err
+      return @parallel() err
+
     storage.writeRoot new_root_pos, @parallel()
-  ), efn(callback)
+  , callback
 
 ###
   Check page length

@@ -38,19 +38,23 @@ exports.compact = (_callback) ->
     process.nextTick ->
       _callback and _callback err, data
 
-  efn = utils.efn callback
-
   if @lock(=> @compact _callback)
     return
 
   iterate = (callback) ->
-    efn((err, page) ->
+    (err, page) ->
+      if err
+        return @paralell() err
+
       in_leaf = page[0] && page[0][2]
       fns = page.map (item) ->
         ->
-          step (->
+          step ->
             storage.read item[1], @parallel()
-          ), efn((err, data) ->
+          , (err, data) ->
+            if err
+              return @parallel() err
+
             if in_leaf
               # data is actual value
               # remove old revision referense
@@ -59,31 +63,46 @@ exports.compact = (_callback) ->
               return
 
             iterate(@parallel()) null, data
-          ), efn((err, new_pos) ->
+          , (err, new_pos) ->
+            if err
+              return @parallel() err
+
             item[1] = new_pos
             @parallel() null
-          ), @parallel()
+          , @parallel()
 
-      fns.push(efn (err) ->
+      fns.push (err) ->
+        if err
+          return @parallel() err
+
         storage.write page, @parallel()
-      )
+      
       fns.push callback
 
       step.apply null, fns
-    )
+    
 
-  step (->
+  step ->
     # will allow storage controller
     # to prepare it for
     storage.beforeCompact && storage.beforeCompact @parallel()
     @parallel() null
-  ), efn((err) ->
+  , (err) ->
+    if err
+      return @parallel() err
+
     storage.readRoot iterate @parallel()
-  ), efn((err, new_root_pos) ->
+  , (err, new_root_pos) ->
+    if err
+      return @parallel() err
+
     storage.writeRoot new_root_pos, @parallel()
-  ), efn((err) ->
+  , (err) ->
+    if err
+      return @parallel() err
+
     # @will allow storage to finalize all actions
     storage.afterCompact && storage.afterCompact @parallel()
     @parallel() null
-  ), callback
+  , callback
 

@@ -36,7 +36,6 @@ exports.unset = (key, _callback) ->
     process.nextTick ->
       _callback and _callback err, data
 
-  efn = utils.efn callback
   storage = @storage
   sort = @sort
 
@@ -67,20 +66,26 @@ exports.unset = (key, _callback) ->
       page.splice item_index, 1
       if page.length > 0
         # If resulting page isn't empty
-        step (->
+        step ->
           storage.write page, @parallel()
-        ), efn(callback)
+        , callback
         return
 
       # Notify that item should be removed from parent index
       callback null, false
     else
       # Index page
-      step (->
+      step ->
         storage.read item[1], @parallel()
-      ), efn((err, page) ->
+      , (err, page) ->
+        if err
+          return @parallel() err
+
         iterate page, @parallel()
-      ), efn((err, result) ->
+      , (err, result) ->
+        if err
+          return @parallel() err
+
         if result is false
           # Delete item from index page
           page.splice item_index, 1
@@ -93,16 +98,22 @@ exports.unset = (key, _callback) ->
           callback null
           return
 
-        step (->
+        step ->
           storage.write page, @parallel()
-        ), efn(callback)
-      )
+        , callback
+      
 
-  step (->
+  step ->
     storage.readRoot @parallel()
-  ), efn((err, root) ->
+  , (err, root) ->
+    if err
+      return @parallel() err
+
     iterate root, @parallel()
-  ), efn((err, result) ->
+  , (err, result) ->
+    if err
+      return @parallel() err
+
     if result is false
       # Create new root
       storage.write [], @parallel()
@@ -111,10 +122,13 @@ exports.unset = (key, _callback) ->
       @parallel() null, result
     else
       @parallel() null
-  ), efn((err, position) ->
+  , (err, position) ->
+    if err
+      return @parallel() err
+
     if storage.isPosition position
       storage.writeRoot position, @parallel()
     else
       @parallel() null
-  ), callback
+  , callback
 

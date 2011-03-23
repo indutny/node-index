@@ -72,21 +72,6 @@ utils.search = (index, sort, key) ->
     null
 
 ###
-  Wrapper for asynchronous callback
-###
-utils.efn = (callback) ->
-  (fn) ->
-    # Callback can be empty
-    unless fn
-      fn = -> null
-
-    (err) ->
-      if err
-        return callback err
-
-      fn.apply @, arguments
-
-###
   Hash function wrapper
 ###
 utils.hash = (data) ->

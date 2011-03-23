@@ -34,9 +34,10 @@ step = require 'step'
 exports.get = (key, callback) ->
   sort = @sort
   storage = @storage
-  efn = utils.efn callback
 
-  iterate = efn (err, index) ->
+  iterate = (err, index) ->
+    if err
+      return callback err
 
     item_index = utils.search index, sort, key
     item = index[item_index]
@@ -53,7 +54,10 @@ exports.get = (key, callback) ->
         return callback 'Not found'
 
       # Read actual value
-      storage.read value, efn (err, value) ->
+      storage.read value, (err, value) ->
+        if err
+          return callback err
+
         # value = [value, link-to-previous-value]
         callback null, value[0]
     else
@@ -81,15 +85,16 @@ exports.traverse = (filter) ->
   filter = filter || (kp, callback) -> callback(null, true)
 
   process.nextTick =>
-    efn = utils.efn (err) ->
-      promise.emit 'error', err
-      promise.emit 'end'
-    
     sort = @sort
     storage = @storage
 
     iterate = (callback) ->
-      efn (err, page) ->
+      (err, page) ->
+        if err
+          promise.emit 'error', err
+          promise.emit 'end'
+          return
+
         index = -1
         pagelen = page.length
 
