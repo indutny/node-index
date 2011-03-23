@@ -10,7 +10,7 @@ var helpers = require('./helpers'),
 
 var options = {};
 
-var suite = vows.describe('Node index/fs basic test');
+var suite = vows.describe('Node index/fs high order test');
 
 helpers.fileTest(suite, {order: 256}, {
   filename: __dirname + '/data/fht.db'
