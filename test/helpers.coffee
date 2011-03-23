@@ -69,7 +69,7 @@ unsetArray = (I, prefix, data, callback) ->
 
 exports.consistencyTest = (suite, options) ->
   I = null
-  suite
+  suite = suite
   .addBatch
     'Unsetting not-existing values from empty tree':
       topic: ->
@@ -163,6 +163,8 @@ exports.consistencyTest = (suite, options) ->
         I.bulk arr, @callback
       'should have no conflicts': (conflicts) ->
         assert.equal conflicts.length, 0
+
+  suite = suite
   .addBatch
     'Setting':
       'few key-values':
@@ -245,6 +247,8 @@ exports.consistencyTest = (suite, options) ->
         getArray I, 'many:', many, @callback
       'should return right values': (oks) ->
         assert.ok oks.every (ok) -> ok is true
+
+  suite = suite
   .addBatch
     'Running compaction again':
       topic: ->
