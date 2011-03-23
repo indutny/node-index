@@ -33,10 +33,10 @@ utils = require '../../index/utils'
   Set
 ###
 exports.set = (key, value, _callback) ->
-  that = @
   sort = @sort
   order = @order
   storage = @storage
+  conflictManager = @conflictManager
 
   if @lock(=> @set key, value, _callback)
     return
@@ -90,7 +90,7 @@ exports.set = (key, value, _callback) ->
       step ->
         # Found dublicate
         if item and sort(item[0], key) is 0
-          unless that.conflictManager
+          unless conflictManager
             @parallel() 'Can\'t insert item w/ dublicate key'
             return
 
@@ -102,7 +102,7 @@ exports.set = (key, value, _callback) ->
               return @parallel() err
 
             @parallel() null, old_value
-            that.conflictManager old_value, value, @parallel()
+            conflictManager old_value, value, @parallel()
           , @parallel()
 
           return

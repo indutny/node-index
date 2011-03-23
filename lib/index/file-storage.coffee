@@ -194,6 +194,9 @@ Storage::read = (pos, callback) ->
   file = @files[f || 0]
   buff = new Buffer l
 
+  if not file
+    return callback 'pos is incorrect'
+
   fs.read file.fd, buff, 0, l, s, (err, bytesRead) ->
     if err
       return callback err
@@ -344,6 +347,7 @@ Storage::_fsFlush = (callback) ->
   ), 0
 
   root.copy(buff, len)
+
   @buffer = []
  
   fs.write fd, buff, 0, buff.length, null, (err, bytesWritten) =>

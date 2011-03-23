@@ -7,9 +7,11 @@ index = require '../lib/index'
 
 few = [0, 1, 3, 4, 2, 6, -1]
 
-N = 10000
+N = 1000
 half_of_N = N >> 1
 half_of_N_1 = half_of_N + 1
+
+bulk = [1..N]
 
 many = [1..N]
 left_half_many = [1..half_of_N]
@@ -75,6 +77,91 @@ exports.consistencyTest = (suite, options) ->
         unsetArray I, 'unexist:', unexist, this.callback
       'should be still successfull': ->
         return
+  .addBatch
+    'Running bulk insertion op':
+      topic: ->
+        I.bulk (bulk.map (i) ->
+          ['bulk:' + i, 'bulk:' + i, 1]
+        ), this.callback
+      'should not have conflicts': (conflicts) ->
+        assert.equal conflicts.length, 0
+  .addBatch
+    'Getting items from that bulk set':
+      topic: ->
+        getArray I, 'bulk:', bulk, this.callback
+      'should return right values': (oks) ->
+        assert.ok oks.every (ok) -> ok is true
+  .addBatch
+    'Running bulk insertion op again':
+      topic: ->
+        I.bulk (bulk.map (i) ->
+          ['bulk:' + i, 'bulk:' + i, 1]
+        ), this.callback
+      'should have conflicts': (conflicts) ->
+        assert.equal conflicts.length, bulk.length
+  .addBatch
+    'Running bulk removal op':
+      topic: ->
+        I.bulk (bulk.map (i) ->
+          ['bulk:' + i]
+        ), this.callback
+      'should be successfull': ->
+        return
+  .addBatch
+    'Getting items from that bulk set':
+      topic: ->
+        notgetArray I, 'bulk:', bulk, this.callback
+      'should not return right values': (oks) ->
+        assert.ok oks.every (ok) -> ok isnt true
+  .addBatch
+    'Running bulk insertion for half':
+      topic: ->
+        I.bulk (bulk
+                .filter (i) ->
+                  i % 2
+                .map (i) ->
+                  ['bulk:' + i, 'bulk:' + i, 1]
+                ), this.callback
+      'should have no conflicts': (conflicts) ->
+        assert.equal conflicts.length, 0
+  .addBatch
+    'Running bulk mixed action (insertion/removal)':
+      topic: ->
+        I.bulk (bulk.map (i) ->
+          if i % 2
+            ['bulk:' + i]
+          else
+            ['bulk:' + i, 'bulk:' + i, 1]
+        ), this.callback
+      'should have no conflicts': (conflicts) ->
+        assert.equal conflicts.lentgh, 0
+  .addBatch
+    'Getting items from half of bulk set':
+      topic: ->
+        getArray I, 'bulk:', bulk.filter (i) ->
+          i % 2 == 1
+        , this.callback
+      'should return right values': (oks) ->
+        assert.ok oks.every (ok) -> ok is true
+  .addBatch
+    'Getting items from another half of bulk set':
+      topic: ->
+        notgetArray I, 'bulk:', bulk.filter (i) ->
+          i % 2
+        , this.callback
+      'should not return right values': (oks) ->
+        assert.ok oks.every (ok) -> ok isnt true
+  .addBatch
+    'Running bulk removal for another half':
+      topic: ->
+        I.bulk (bulk
+                .filter (i) ->
+                  i % 2 == 1
+                .map (i) ->
+                  ['bulk:' + i]
+                ), this.callback
+      'should have no conflicts': (conflicts) ->
+        assert.equal conflicts.length, 0
   .addBatch
     'Setting':
       'few key-values':

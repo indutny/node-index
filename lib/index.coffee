@@ -41,10 +41,10 @@ DEFAULT_OPTIONS =
 Index = exports.Index = (options) ->
   options = utils.merge DEFAULT_OPTIONS, options
   
-  @order = options.order + 1
   @storage = options.storage ||
                  require('./index/memory-storage').createStorage()
-  @sort = options.sort
+  {@order, @sort, @conflictManager} = options
+  @order--
   
   @lockQueue = []
 
@@ -77,6 +77,11 @@ Index::unset = require('./index/core/unset').unset
   Compaction functionality
 ###
 Index::compact = require('./index/core/compact').compact
+
+###
+  Bulk functionality
+###
+Index::bulk = require('./index/core/bulk').bulk
 
 ###
   Lock functionality

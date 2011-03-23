@@ -44,7 +44,7 @@ exports.compact = (_callback) ->
   iterate = (callback) ->
     (err, page) ->
       if err
-        return @paralell() err
+        return callback err
 
       in_leaf = page[0] && page[0][2]
       fns = page.map (item) ->
