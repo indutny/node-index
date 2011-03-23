@@ -156,7 +156,7 @@ exports.consistencyTest = (suite, options) ->
     'Running bulk removal for another half':
       topic: ->
         arr = bulk.filter (i) ->
-          i % 2 == 1
+          i % 2 == 0
         arr = arr.map (i) ->
           ['bulk:' + i]
 
