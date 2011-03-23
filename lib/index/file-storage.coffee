@@ -144,7 +144,6 @@ Storage::openFile = (callback) ->
 
     if file.size % padding
       paddBuff = new Buffer padding - file.size % padding
-      console.log paddBuff.length
       fs.write fd, paddBuff, 0, paddBuff.length,
                null, @parallel()
     else
