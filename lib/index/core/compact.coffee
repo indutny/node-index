@@ -51,9 +51,10 @@ exports.compact = (_callback) ->
         ->
           step ->
             storage.read item[1], @parallel()
+            return
           , (err, data) ->
             if err
-              return @parallel() err
+              throw err
 
             if in_leaf
               # data is actual value
@@ -63,19 +64,22 @@ exports.compact = (_callback) ->
               return
 
             iterate(@parallel()) null, data
+            return
           , (err, new_pos) ->
             if err
-              return @parallel() err
+              throw err
 
             item[1] = new_pos
             @parallel() null
+            return
           , @parallel()
 
       fns.push (err) ->
         if err
-          return @parallel() err
+          throw err
 
         storage.write page, @parallel()
+        return
       
       fns.push callback
 
@@ -85,24 +89,32 @@ exports.compact = (_callback) ->
   step ->
     # will allow storage controller
     # to prepare it for
-    storage.beforeCompact && storage.beforeCompact @parallel()
-    @parallel() null
+    if storage.beforeCompact
+      storage.beforeCompact @parallel()
+    else
+      @parallel() null
+    return
   , (err) ->
     if err
-      return @parallel() err
+      throw err
 
     storage.readRoot iterate @parallel()
+    return
   , (err, new_root_pos) ->
     if err
-      return @parallel() err
+      throw err
 
     storage.writeRoot new_root_pos, @parallel()
+    return
   , (err) ->
     if err
-      return @parallel() err
+      throw err
 
     # @will allow storage to finalize all actions
-    storage.afterCompact && storage.afterCompact @parallel()
-    @parallel() null
+    if storage.afterCompact
+      storage.afterCompact @parallel()
+    else
+      @parallel() null
+    return
   , callback
 

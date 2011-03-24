@@ -46,27 +46,39 @@ DEFAULT_OPTIONS =
 ###
 Storage = exports.Storage = (options, callback) ->
   options = utils.merge DEFAULT_OPTIONS, options
-  @files = []
 
   unless options.filename
     return callback 'Filename is required'
 
   {@posBase, @filename, @padding, @partitionSize, @rootSize} = options
 
-  @buffer = []
-
-  @openFile (err) =>
-    if err
-      return callback err
-
-    if @files.length <= 0
-      # If no files - create one
-      @createFile callback
-    else
-      callback null, @
+  @_init callback
 
   # Return instance of self
   @
+
+###
+  Initializes storage
+  May be used not from constructor
+###
+Storage::_init = (callback) ->
+  @files = []
+  @buffer = []
+  @filesOffset = 0
+
+  @checkCompaction (err) =>
+    if err
+      return callback err
+
+    @openFile (err) =>
+      if err
+        return callback err
+
+      if @files.length <= 0
+        # If no files - create one
+        @createFile callback
+      else
+        callback null, @
 
 ###
   @constructor wrapper
@@ -88,12 +100,104 @@ Storage::isPosition = isPosition = (pos) ->
   Adds index to the end of file
   and return next (unopened) filename
 ###
-Storage::nextFilename = (i) ->
-  index = i || @files.length
+Storage::nextFilename = (i, filename) ->
+  index = i or @files.length
+  index -= @filesOffset
+  filename = filename or @filename
   if index > 0
-    @filename + '.' + index
+    filename + '.' + index
   else
-    @filename
+    filename
+
+###
+  Check if interrupted compaction is in place
+###
+Storage::checkCompaction = (callback) ->
+  filename = @filename
+
+  nextFilename = @nextFilename.bind @
+  path.exists filename, (exists) =>
+    path.exists filename + '.compact', (compactExists) =>
+      if exists
+        if compactExists
+          # Probably compaction hasn't finished
+          # Delete compaction files
+          @iterateFiles filename + '.compact', (err, i) ->
+            if err
+              throw err
+
+            if i isnt null
+              compacted = nextFilename i, filename + '.compact'
+              fs.unlink compacted, @parallel()
+            else
+              @parallel() null
+        # Normal db file exists - use it
+        callback null
+      else
+        if compactExists
+          # Ok, compaction has finished
+          # Move files
+          @iterateFiles filename + '.compact', (err, i) ->
+            if err
+              throw err
+
+            if i isnt null
+              # still iterating
+              compacted = nextFilename i, filename + '.compact'
+              notcompacted = nextFilename i, filename
+              _callback = @parallel()
+              fs.unlink notcompacted, (err) ->
+                if err and (not err.code or err.code isnt 'ENOENT')
+                  _callback err
+                else
+                  fs.rename compacted, notcompacted, _callback
+            else
+              # finished iterating
+              callback null
+        else
+          callback null
+
+
+###
+  Iterate through files in descending order
+  filename.N
+  filename.N - 1
+  ...
+  filename
+###
+Storage::iterateFiles = (filename, callback) ->
+  files = []
+
+  next = () =>
+    _filename = @nextFilename files.length, filename
+    step ->
+      _callback = @parallel()
+      path.exists _filename, (exists) ->
+        _callback null, exists
+      return
+    , (err, exists) ->
+      unless exists
+        process.nextTick iterate
+        return
+
+      files.push files.length
+      process.nextTick next
+
+  iterate = () ->
+    file = files.pop()
+    unless file?
+      file = null
+
+    step ->
+      @parallel() null, file
+    , callback
+    , (err) ->
+      if err
+        callback err
+      else if file isnt null
+        process.nextTick iterate
+    
+  next()
 
 ###
   Add index to the end of filename,
@@ -103,6 +207,7 @@ Storage::openFile = (callback) ->
   that = @
 
   padding = @padding
+  files = @files
   filename = @nextFilename()
   file = {}
 
@@ -126,14 +231,13 @@ Storage::openFile = (callback) ->
     return
   , (err, fd, stat) ->
     if err
-      @parallel() err
-      return
+      throw err
 
     unless fd and stat
       @parallel() null
       return
 
-    index = that.files.length
+    index = files.length
 
     
     file =
@@ -151,13 +255,12 @@ Storage::openFile = (callback) ->
 
     @parallel() null, file
 
-    that.files.push file
+    files.push file
 
     return
   , (err, bytesWritten, file) ->
     if err
-      @parallel() err
-      return
+      throw err
 
     if bytesWritten?
       if file.size % padding
@@ -188,7 +291,7 @@ Storage::createFile = (writeRoot, callback) ->
       filename: filename
       fd: fd
       size: 0
-      index: @files.length
+      index: @files.length - @filesOffset
 
     @files.push file
 
@@ -440,25 +543,77 @@ Storage::setState = (state) ->
   Compaction flow actions
 ###
 Storage::beforeCompact = (callback) ->
-  @compact_index = @files.length
+  @filesOffset = @files.length
+  @filename += '.compact'
   @createFile false, callback
 
 Storage::afterCompact = (callback) ->
-  compact_index = @compact_index
+  that = @
+  filesOffset = @filesOffset
   files = @files
+  @filename = @filename.replace /\.compact$/, ''
 
   step () ->
-    group = @group()
-    for i in [0...compact_index]
-      if files[i]
-        fs.truncate files[i].fd, group()
+    for i in [0...files.length]
+      fs.close files[i].fd, @parallel()
+    return
   , (err) ->
     if err
-      return @parallel() err
+      throw err
 
-    group = @group()
-    for i in [0...compact_index]
-      if files[i]
-        fs.close files[i].fd, group()
-        files[i] = undefined
+    for i in [0...filesOffset]
+      fs.unlink files[i].filename, @parallel()
+    return
+  , (err) ->
+    if err
+      throw err
+     
+    fnsQueue = []
+    compactedCount = files.length - filesOffset
+    [0...compactedCount].forEach (i) ->
+      compactedName = files[i + filesOffset].filename
+      normalName = files[i].filename
+      files[i] = files[i + filesOffset]
+      files[i].filename = normalName
+
+      fnsQueue.unshift (err) ->
+        if err
+          throw err
+      
+        fs.rename compactedName, normalName, @parallel()
+        return
+
+    fnsQueue.push @parallel()
+
+    step.apply null, fnsQueue
+
+    for i in [compactedCount...files.length]
+      files.pop()
+
+    that.filesOffset = 0
+    return
+  , (err) ->
+    if err
+      throw err
+
+    [0...files.length].forEach (i) =>
+      file = files[i]
+      fn = @parallel()
+      fs.open file.filename, 'a+', 0666, (err, fd) ->
+        file.fd = fd
+        fn err, file
+
+    return
+  , (err) ->
+    if err
+      step ->
+        for i in [0...files.length]
+          fs.close files[i].fd, @parallel()
+        return
+      , ->
+        that._init @parallel()
+        return
+      , @parallel()
+      return
+    null
   , callback

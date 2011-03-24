@@ -60,12 +60,12 @@ exports.set = (key, value, _callback) ->
         storage.read item[1], @parallel()
       , (err, page) ->
         if err
-          return @parallel() err
+          throw err
 
         iterate page, @parallel()
       , (err, result) ->
         if err
-          return @parallel() err
+          throw err
 
         if storage.isPosition result
           # Page is just should be overwrited
@@ -91,15 +91,14 @@ exports.set = (key, value, _callback) ->
         # Found dublicate
         if item and sort(item[0], key) is 0
           unless conflictManager
-            @parallel() 'Can\'t insert item w/ dublicate key'
-            return
+            throw 'Can\'t insert item w/ dublicate key'
 
           # Invoke conflictManager
           step ->
             storage.read item[1], @parallel()
           , (err, old_value) ->
             if err
-              return @parallel() err
+              throw err
 
             @parallel() null, old_value
             conflictManager old_value, value, @parallel()
@@ -110,14 +109,14 @@ exports.set = (key, value, _callback) ->
         @parallel() null, value
       , (err, value, old_value) ->
         if err
-          return @parallel() err
+          throw err
 
         # Value should be firstly written in storage
         item_index = if item_index is null then 0 else item_index + 1
         storage.write [value, old_value], @parallel()
       , (err, value) ->
         if err
-          return @parallel() err
+          throw err
 
         # Than inserted in leaf page
         page.splice item_index, 0, [key, value, 1]
@@ -130,13 +129,13 @@ exports.set = (key, value, _callback) ->
     storage.readRoot @parallel()
   , (err, root) ->
     if err
-      return @parallel() err
+      throw err
 
     # Initiate sequence
     iterate root, @parallel()
   , (err, result) ->
     if err
-      return @parallel() err
+      throw err
 
     if storage.isPosition result
       # Write new root
@@ -149,7 +148,7 @@ exports.set = (key, value, _callback) ->
       ], @parallel()
   , (err, new_root_pos) ->
     if err
-      return @parallel() err
+      throw err
 
     storage.writeRoot new_root_pos, @parallel()
   , callback

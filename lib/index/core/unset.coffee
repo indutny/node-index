@@ -79,12 +79,12 @@ exports.unset = (key, _callback) ->
         storage.read item[1], @parallel()
       , (err, page) ->
         if err
-          return @parallel() err
+          throw err
 
         iterate page, @parallel()
       , (err, result) ->
         if err
-          return @parallel() err
+          throw err
 
         if result is false
           # Delete item from index page
@@ -107,12 +107,12 @@ exports.unset = (key, _callback) ->
     storage.readRoot @parallel()
   , (err, root) ->
     if err
-      return @parallel() err
+      throw err
 
     iterate root, @parallel()
   , (err, result) ->
     if err
-      return @parallel() err
+      throw err
 
     if result is false
       # Create new root
@@ -124,7 +124,7 @@ exports.unset = (key, _callback) ->
       @parallel() null
   , (err, position) ->
     if err
-      return @parallel() err
+      throw err
 
     if storage.isPosition position
       storage.writeRoot position, @parallel()
