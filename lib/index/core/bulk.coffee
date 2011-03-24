@@ -44,7 +44,7 @@ exports.bulk = (kvs, _callback) ->
   storage = @storage
   conflictManager = @conflictManager
 
-  if @lock(=> @bulk key, value, _callback)
+  if @lock(=> @bulk kvs, _callback)
     return
 
   callback = (err, data) =>
@@ -93,7 +93,9 @@ exports.bulk = (kvs, _callback) ->
         if page[index + 1]
           kv_index = utils.search kvs, sort, page[index + 1][0]
 
-          if sort(kvs[kv_index][0], page[index + 1][0]) isnt 0
+          if not kvs[kv_index]
+            kv_index++
+          else if sort(kvs[kv_index][0], page[index + 1][0]) isnt 0
             kv_index++
           _kvs = kvs.splice 0, kv_index
         else
