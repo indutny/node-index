@@ -2,7 +2,7 @@ Node index
 ==========
 
 This module is a implementation of a append-only B+ Tree fully written in 
-[coffee-script](https://github.com/jashkenas/coffee-script coffee-script).
+[coffee-script](https://github.com/jashkenas/coffee-script).
 
 Basics
 ------
@@ -23,6 +23,17 @@ Basics
 
     // Remove value from storage
     index.unset('key', function(err) {
+    });
+
+    // Bulk op
+    index.bulk([
+      ['key', 'value', 1], // insert kv
+      ['key'] // remove kv
+    ], function(err, conflicts) {
+    });
+
+    // Compaction
+    index.compact(function(err) {
     });
 
 Options
