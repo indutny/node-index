@@ -27,7 +27,8 @@ step (() ->
    'lib/index/core/get.coffee',
    'lib/index/core/set.coffee',
    'lib/index/core/unset.coffee',
-   'lib/index/core/compact.coffee'
+   'lib/index/core/compact.coffee',
+   'lib/index/core/bulk.coffee',
   ], @parallel()
 
   return
