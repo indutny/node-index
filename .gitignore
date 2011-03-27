@@ -1,4 +1,5 @@
 *.swp
 test/data/*
+!test/data/.keep
 build/*
 
