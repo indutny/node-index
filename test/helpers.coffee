@@ -8,7 +8,7 @@ index = require '../lib/index'
 
 few = [0, 1, 3, 4, 2, 6, -1]
 
-N = 10000
+N = 1000
 half_of_N = N >> 1
 half_of_N_1 = half_of_N + 1
 
@@ -18,6 +18,7 @@ many = [1..N]
 left_half_many = [1..half_of_N]
 right_half_many = [half_of_N_1..N]
 unexist = [1..10]
+reversed = [N..1]
 
 setArray = (I, prefix, data, callback) ->
   step ->
@@ -70,6 +71,7 @@ unsetArray = (I, prefix, data, callback) ->
 
 exports.consistencyTest = (suite, options) ->
   I = null
+
   suite = suite
   .addBatch
     'Unsetting not-existing values from empty tree':
@@ -78,6 +80,28 @@ exports.consistencyTest = (suite, options) ->
         unsetArray I, 'unexist:', unexist, @callback
       'should be still successfull': ->
         return
+
+  suite = suite
+  .addBatch
+    'Inserting kvs in reverse order':
+      topic: ->
+        setArray I, 'reverse:', reversed, @callback
+      'should be successfull': ->
+        return
+  .addBatch
+    'Getting any of them':
+      topic: ->
+        getArray I, 'reverse:', reversed, @callback
+      'should return right values': (oks) ->
+        assert.ok oks.every (ok) -> ok is true
+  .addBatch
+    'Unsetting all of them':
+      topic: ->
+        unsetArray I, 'reverse:', reversed, @callback
+      'should be successfull': ->
+        return
+
+  suite = suite
   .addBatch
     'Running bulk insertion op':
       topic: ->

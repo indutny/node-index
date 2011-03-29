@@ -61,15 +61,18 @@ merge = utils.merge = (a, b) ->
  
 ###
 utils.search = (index, sort, key) ->
-  i = index.length - 1
+  len = index.length - 1
+  i = len
 
   while i >= 0 and sort(index[i][0], key) > 0
     i--
 
-  if i >= 0
-    i
-  else
+  if i == len and len >= 0 and sort(index[i][0], key) == 0
     null
+  if i < 0
+    null
+  else
+    i
 
 ###
   Hash function wrapper
