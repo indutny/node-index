@@ -36,7 +36,7 @@ Buffer = require('buffer').Buffer
 ###
 DEFAULT_OPTIONS =
   filename: ''
-  padding: 16
+  padding: 14
   rootSize: 56
   partitionSize: 1024 * 1024 * 1024
   posBase: 36
@@ -395,6 +395,7 @@ Storage::readRoot = (callback) ->
       return callback err
     @root_pos_data = data
     callback null, data
+    return
 
   if @root_pos
     @read @root_pos, cache_callback
@@ -538,7 +539,6 @@ Storage::_fsFlush = (callback) ->
     len += @padding - (len % @padding)
 
   buff = new Buffer (len + root.length)
-
   offset = 0
   for i in [0...buffer.length]
     buffer[i].copy buff, offset
