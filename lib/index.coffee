@@ -32,7 +32,7 @@ DEFAULT_OPTIONS =
   sort: (a, b) ->
     if (a is null) or (a < b) then -1 else
       if a is b then 0 else 1
-  order: 32
+  order: 52
 
 
 ###

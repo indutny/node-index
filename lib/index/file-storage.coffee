@@ -40,6 +40,9 @@ DEFAULT_OPTIONS =
   rootSize: 64
   partitionSize: 1024 * 1024 * 1024
   posBase: 36
+  flushTimeout: 5000
+  flushSize: 5000
+  flushByteLimit: 10000000
 
 ###
   Class @constructor
@@ -50,9 +53,20 @@ Storage = exports.Storage = (options, callback) ->
   unless options.filename
     return callback 'Filename is required'
 
-  {@posBase, @filename, @padding, @partitionSize, @rootSize} = options
+  {@posBase, @filename, @padding,
+  @partitionSize, @rootSize, @flushTimeout,
+  @flushSize} = options
 
+  @flushTimeouted = false
   @_init callback
+
+  flush = =>
+    @flushTimer = setTimeout =>
+      @flushTimeouted = true
+    , @flushTimeout
+    
+  
+  flush()
 
   # Return instance of self
   @
@@ -64,6 +78,8 @@ Storage = exports.Storage = (options, callback) ->
 Storage::_init = (callback) ->
   @files = []
   @buffer = []
+  @bufferMap = {}
+  @bufferMapBytes = 0
   @filesOffset = 0
 
   @checkCompaction (err) =>
@@ -298,6 +314,12 @@ Storage::createFile = (writeRoot, callback) ->
     unless writeRoot
       return callback null, @
     
+    @root_pos = [
+      '0',
+      '2',
+      '0'
+    ]
+
     # Write new root
     @write [], (err, pos) =>
       if err
@@ -325,6 +347,16 @@ Storage::read = (pos, callback) ->
 
   if not file
     return callback 'pos is incorrect'
+
+  cachedVal = @bufferMap[pos.join '-']
+
+  if cachedVal
+    cachedVal = cachedVal.slice 0, l
+    try
+      cachedVal = JSON.parse cachedVal.toString()
+      callback null, cachedVal
+      return
+    catch e
 
   fs.read file.fd, buff, 0, l, s, (err, bytesRead) ->
     if err
@@ -381,6 +413,7 @@ Storage::readRootPos = (callback) ->
     # B/c root can't be in that unpadded area
     offset = file.size - (file.size % @padding) -
              @rootSize + @padding
+
     while (offset -= @padding) >= 0
       bytesRead = fs.readSync file.fd, buff, 0, @rootSize, offset
       unless bytesRead == @rootSize
@@ -426,12 +459,13 @@ Storage::writeRoot = (root_pos, callback) ->
   hash = utils.hash buff.slice utils.hash.len
   buff.write hash, 0, 'binary'
 
+  @bufferedRoot = buff
   @_fsWrite buff, (err) =>
     if err
       return callback err
 
     @root_pos = root_pos
-    @_fsFlush callback
+    @_fsConditionalFlush callback
 
 ###
   Low-level write
@@ -453,7 +487,21 @@ Storage::_fsWrite = (buff, callback) ->
 
   @buffer.push buff
 
+  @bufferMap[pos.join '-'] = buff
+  @bufferMapBytes += buff.length
+
   callback null, pos
+
+###
+  Conditional flush
+###
+Storage::_fsConditionalFlush = (callback) ->
+  if (@buffer.length > @flushSize) or @flushTimeouted or
+     (@bufferMapBytes >  @flushByteLimit)
+    @flushTimeouted = false
+    @_fsFlush callback
+  else
+    callback null
 
 ###
   Low-level flush
@@ -462,9 +510,12 @@ Storage::_fsFlush = (callback) ->
   file = @currentFile()
   fd = file.fd
 
-  root = @buffer.pop()
+  if not @bufferedRoot
+    return callback null
 
-  len = 0
+  root = @bufferedRoot
+
+  len = -root.length
   @buffer.forEach (buff) ->
     len += buff.length
 
@@ -482,7 +533,10 @@ Storage::_fsFlush = (callback) ->
   root.copy(buff, len)
 
   @buffer = []
- 
+  @bufferedRoot = null
+  @bufferMap = {}
+  @bufferMapBytes = 0
+
   fs.write fd, buff, 0, buff.length, null, (err, bytesWritten) =>
     if err or (bytesWritten isnt buff.length)
       @_fsCheckSize (err2) ->
@@ -520,32 +574,34 @@ Storage::currentFile = ->
 Storage::close = (callback) ->
   files = @files
 
-  step () ->
-    group = @group()
+  clearTimeout @flushTimer
 
-    for i in [0...files.length]
-      if files[i]
-        fs.close files[i].fd, group()
-  , callback
+  @flushTimeouted = true
 
-###
-  Storage state
-###
-Storage::getState = () ->
-  padding: @padding
-  rootSize: @rootSize
-  posBase: @posBase
+  @_fsConditionalFlush (err) =>
+    if err
+      return callback err
 
-Storage::setState = (state) ->
-  {@padding, @posBase, @rootSize} = state
+    step () ->
+      group = @group()
+
+      for i in [0...files.length]
+        if files[i]
+          fs.close files[i].fd, group()
+    , callback
 
 ###
   Compaction flow actions
 ###
 Storage::beforeCompact = (callback) ->
-  @filesOffset = @files.length
-  @filename += '.compact'
-  @createFile false, callback
+  @flushTimeouted = true
+  @_fsConditionalFlush (err) =>
+    if err
+      return callback err
+
+    @filesOffset = @files.length
+    @filename += '.compact'
+    @createFile false, callback
 
 Storage::afterCompact = (callback) ->
   that = @

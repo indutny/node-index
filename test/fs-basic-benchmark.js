@@ -10,7 +10,7 @@ var index = require('../lib/index'),
 var I,
     fileStorage,
     filename = __dirname + '/data/fbb.db',
-    num = 1000,
+    num = 10000,
     start,
     end;
 
@@ -83,16 +83,20 @@ vows.describe('Node index/fs basic benchmark').addBatch({
       var group = this.group();
 
       start = +new Date;
-      for (var i = 0; i < num; i++) {
+
+      var num2 = num / 3;
+      for (var i = 0; i < num2; i++) {
         I.bulk([
-          ['prefix:' + i, 'prefix:' + i, 1]
+          ['prefix1:' + i, 'prefix1:' + i, 1],
+          ['prefix2:' + i, 'prefix2:' + i, 1],
+          ['prefix3:' + i, 'prefix3:' + i, 1]
         ], group());
       }
     }, this.callback);
   },
   'should be successfull': function() {
     end = +new Date;
-    console.log('%d writes per second (via bulk)', 1000 * num / (end - start));
+    console.log('%d writes per second (via bulk)', 3000 * num / (end - start));
   }
 }
 }).export(module);
