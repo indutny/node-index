@@ -4,6 +4,11 @@ Node index
 This module is a implementation of a append-only B+ Tree fully written in 
 [coffee-script](https://github.com/jashkenas/coffee-script).
 
+Benchmark
+---------
+
+![benchmark](https://github.com/donnerjack13589/node-index/raw/master/stub/chart.png)
+
 Basics
 ------
 
