@@ -26,7 +26,6 @@
 ###
 
 utils = require './utils'
-{LRU} = require './lru'
 step = require 'step'
 fs = require 'fs'
 path = require 'path'
@@ -41,9 +40,7 @@ DEFAULT_OPTIONS =
   rootSize: 56
   partitionSize: 1024 * 1024 * 1024
   posBase: 36
-  flushTimeout: 1500000
-  flushSize: 10000
-  flushByteLimit: 10000000
+  flushMinBytes: 4 * 1024 * 1024
 
 ###
   Class @constructor
@@ -55,9 +52,7 @@ Storage = exports.Storage = (options, callback) ->
     return callback 'Filename is required'
 
   {@posBase, @filename, @padding,
-  @partitionSize, @rootSize, @lruOptions} = options
-
-  @lru = new LRU @lruOptions
+  @partitionSize, @rootSize, @flushMinBytes} = options
 
   @_init callback
 
@@ -70,8 +65,10 @@ Storage = exports.Storage = (options, callback) ->
 ###
 Storage::_init = (callback) ->
   @files = []
-  @buffer = []
   @filesOffset = 0
+  @buffers = []
+  @buffersBytes = 0
+  @buffersHashmap = {}
 
   @checkCompaction (err) =>
     if err
@@ -320,7 +317,7 @@ Storage::createFile = (writeRoot, callback) ->
       @writeRoot pos, (err) =>
         if err
           return callback err
-        
+       
         callback null, @
 
 ###
@@ -341,19 +338,15 @@ Storage::read = (pos, callback) ->
   if not file
     return callback 'pos is incorrect'
 
-  key = pos.join '-'
+  cached = @buffersHashmap[pos.join '-']
 
-  if not @skipLRU
-    cached = @lru.get key
-
-    if cached
-      try
-        cached = JSON.parse cached.toString()
-        process.nextTick ->
-          callback null, cached
-        return
-      catch e
-  
+  if cached
+    try
+      cached = JSON.parse cached.toString()
+      callback null, cached
+      return
+    catch e
+    
   fs.read file.fd, buff, 0, l, s, (err, bytesRead) ->
     if err
       return callback err
@@ -428,7 +421,7 @@ Storage::readRootPos = (callback) ->
         break
 
       if data = checkHash buff
-        root = data.split('\n', 1)[0]
+        root = data.split('\t', 1)[0]
         try
           root = JSON.parse root
         catch e
@@ -458,27 +451,27 @@ Storage::writeRoot = (root_pos, callback) ->
   _root_pos = JSON.stringify root_pos
   _root_pos_len = Buffer.byteLength _root_pos
   _padding_len = @rootSize - _root_pos_len
-  _root_pos = [_root_pos].concat(new Array _padding_len).join '\n'
+  _root_pos = [_root_pos].concat(new Array _padding_len).join '\t'
   buff = new Buffer @rootSize
   buff.write _root_pos, utils.hash.len
 
   hash = utils.hash buff.slice utils.hash.len
   buff.write hash, 0, 'binary'
 
-  @_fsWrite buff, (err) =>
+  @_fsBuffer buff, true, (err) =>
     if err
       return callback err
 
     @root_pos = root_pos
     @root_pos_data = null
-    @_fsFlush callback
+    callback null
+
 
 ###
   Low-level write
 
   buff - is Buffer
   
-  Not writes data, but put it into @buffer
 ###
 Storage::_fsWrite = (buff, callback) ->
   file = @currentFile()
@@ -490,42 +483,58 @@ Storage::_fsWrite = (buff, callback) ->
   ]
 
   file.size += buff.length
+  
+  @buffersHashmap[pos.join '-'] = buff
 
-  if not @skipLRU
-    @lru.set pos.join('-'), buff
-  @buffer.push buff
-
-  callback null, pos
+  @_fsBuffer buff, false, (err) ->
+    callback err, pos
 
 ###
-  Low-level flush
+  Low-level bufferization
+###
+Storage::_fsBuffer = (buff, isRoot, callback) ->
+  file = @currentFile()
+  fd = file.fd
+
+  buffLen = buff.length
+
+  if isRoot
+    if file.size % @padding
+      delta = @padding - (file.size % @padding)
+
+      _buff = buff
+
+      buffLen += delta
+      buff = new Buffer buffLen
+      _buff.copy buff, delta
+    file.size += buffLen
+
+  @buffers.push buff
+  if (@buffersBytes += buffLen) < @flushMinBytes
+    callback null
+    return
+
+  @_fsFlush callback
+
+###
+  Flush buffered data to disk
 ###
 Storage::_fsFlush = (callback) ->
   file = @currentFile()
   fd = file.fd
 
-  buffer = @buffer
-  root = buffer.pop()
-
-  len = 0
-  buffer.forEach (buff) ->
-    len += buff.length
-
-  if len % @padding
-    file.size += @padding - (len % @padding)
-    len += @padding - (len % @padding)
-
-  buff = new Buffer (len + root.length)
+  buffLen = @buffersBytes
+  buff = new Buffer buffLen
   offset = 0
-  for i in [0...buffer.length]
-    buffer[i].copy buff, offset
-    offset += buffer[i].length
+  buffers = @buffers
+  for i in [0...buffers.length]
+    buffers[i].copy buff, offset
+    offset += buffers[i].length
 
-  root.copy(buff, len)
+  @buffers = []
+  @buffersBytes = 0
+  @buffersHashmap = {}
 
-  @buffer = []
-
-  buffLen = buff.length
   fs.write fd, buff, 0, buffLen, null, (err, bytesWritten) =>
     if err or (bytesWritten isnt buffLen)
       @_fsCheckSize (err2) ->
@@ -563,13 +572,17 @@ Storage::currentFile = ->
 Storage::close = (callback) ->
   files = @files
 
-  step () ->
-    group = @group()
+  @_fsFlush (err) ->
+    if err
+      return callback err
 
-    for i in [0...files.length]
-      if files[i]
-        fs.close files[i].fd, group()
-  , callback
+    step () ->
+      group = @group()
+  
+      for i in [0...files.length]
+        if files[i]
+          fs.close files[i].fd, group()
+    , callback
 
 ###
   Compaction flow actions
@@ -577,78 +590,81 @@ Storage::close = (callback) ->
 Storage::beforeCompact = (callback) ->
   @filesOffset = @files.length
   @filename += '.compact'
-  @createFile false, callback
-  @skipLRU = true
+  @_fsFlush (err) =>
+    if err
+      return callback err
+    @createFile false, callback
 
 Storage::afterCompact = (callback) ->
-  @skipLRU = false
-  @lru = new LRU @lruOptions
   that = @
   filesOffset = @filesOffset
   files = @files
   @filename = @filename.replace /\.compact$/, ''
 
-  step () ->
-    for i in [0...files.length]
-      fs.close files[i].fd, @parallel()
-    return
-  , (err) ->
+  @_fsFlush (err) =>
     if err
-      throw err
-
-    for i in [0...filesOffset]
-      fs.unlink files[i].filename, @parallel()
-    return
-  , (err) ->
-    if err
-      throw err
-     
-    fnsQueue = []
-    compactedCount = files.length - filesOffset
-    [0...compactedCount].forEach (i) ->
-      compactedName = files[i + filesOffset].filename
-      normalName = files[i].filename
-      files[i] = files[i + filesOffset]
-      files[i].filename = normalName
-
-      fnsQueue.unshift (err) ->
-        if err
-          throw err
-      
-        fs.rename compactedName, normalName, @parallel()
-        return
-
-    fnsQueue.push @parallel()
-
-    step.apply null, fnsQueue
-
-    for i in [compactedCount...files.length]
-      files.pop()
-
-    that.filesOffset = 0
-    return
-  , (err) ->
-    if err
-      throw err
-
-    [0...files.length].forEach (i) =>
-      file = files[i]
-      fn = @parallel()
-      fs.open file.filename, 'a+', 0666, (err, fd) ->
-        file.fd = fd
-        fn err, file
-
-    return
-  , (err) ->
-    if err
-      step ->
-        for i in [0...files.length]
-          fs.close files[i].fd, @parallel()
-        return
-      , ->
-        that._init @parallel()
-        return
-      , @parallel()
+      return callback err
+    step () ->
+      for i in [0...files.length]
+        fs.close files[i].fd, @parallel()
       return
-    null
-  , callback
+    , (err) ->
+      if err
+        throw err
+
+      for i in [0...filesOffset]
+        fs.unlink files[i].filename, @parallel()
+      return
+    , (err) ->
+      if err
+        throw err
+       
+      fnsQueue = []
+      compactedCount = files.length - filesOffset
+      [0...compactedCount].forEach (i) ->
+        compactedName = files[i + filesOffset].filename
+        normalName = files[i].filename
+        files[i] = files[i + filesOffset]
+        files[i].filename = normalName
+
+        fnsQueue.unshift (err) ->
+          if err
+            throw err
+        
+          fs.rename compactedName, normalName, @parallel()
+          return
+
+      fnsQueue.push @parallel()
+
+      step.apply null, fnsQueue
+
+      for i in [compactedCount...files.length]
+        files.pop()
+
+      that.filesOffset = 0
+      return
+    , (err) ->
+      if err
+        throw err
+
+      [0...files.length].forEach (i) =>
+        file = files[i]
+        fn = @parallel()
+        fs.open file.filename, 'a+', 0666, (err, fd) ->
+          file.fd = fd
+          fn err, file
+
+      return
+    , (err) ->
+      if err
+        step ->
+          for i in [0...files.length]
+            fs.close files[i].fd, @parallel()
+          return
+        , ->
+          that._init @parallel()
+          return
+        , @parallel()
+        return
+      null
+    , callback

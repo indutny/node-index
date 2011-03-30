@@ -12,7 +12,7 @@ var I,
     fileStorage,
     filename = __dirname + '/data/fbb.db',
     N = 1000000,
-    dn = 10000,
+    dn = 2500,
     start,
     end;
 
@@ -73,8 +73,12 @@ function benchmark(callback) {
 
     function next() {
       i++;
+      if (i % 10 == 0)
       if (i >= dn) return callback();
-      I.set(keys[i], keys[i], next);
+      I.set(keys[i], {
+        _id: keys[i],
+        _rev: keys[i]
+      }, next);
     }
 
     next();
@@ -92,8 +96,7 @@ function benchmark(callback) {
   function iterate(callback) {
     var writeTotal,
         readTotal,
-        compactTotal,
-        start = +new Date;
+        compactTotal;
 
     keys = [];
     for (var i = 0; i < dn; i++) {
@@ -102,11 +105,13 @@ function benchmark(callback) {
       all_keys.push(ind);
     }
     
+    var start = +new Date;
     iterateWrite(function() {
       writeTotal = +new Date - start;
 
       times++;
-      fs.write(writefd, (offset + dn) + ',' + (1e3 * writeTotal / dn) + '\r\n');
+      fs.write(writefd, (offset + dn) + ',' + (1e3 * dn / writeTotal) +
+               '\r\n');
 
       keys = [];
 
@@ -118,7 +123,8 @@ function benchmark(callback) {
       iterateRead(function() {
         readTotal = +new Date - start;
 
-        fs.write(readfd, (offset + dn) + ',' + (1e3 * readTotal / dn) + '\r\n');
+        fs.write(readfd, (offset + dn) + ',' + (1e3 * dn / readTotal) +
+                 '\r\n');
 
         start = +new Date;
         I.compact(function() {
