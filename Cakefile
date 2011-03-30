@@ -20,7 +20,8 @@ step (() ->
   build 'build/index', [
     'lib/index/utils.coffee',
     'lib/index/memory-storage.coffee',
-    'lib/index/file-storage.coffee'
+    'lib/index/file-storage.coffee',
+    'lib/index/lru.coffee'
   ], @parallel()
 
   build 'build/index/core', [

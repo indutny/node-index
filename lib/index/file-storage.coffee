@@ -41,7 +41,7 @@ DEFAULT_OPTIONS =
   partitionSize: 1024 * 1024 * 1024
   posBase: 36
   flushTimeout: 5000
-  flushSize: 5000
+  flushSize: 10000
   flushByteLimit: 10000000
 
 ###
@@ -319,6 +319,7 @@ Storage::createFile = (writeRoot, callback) ->
       '2',
       '0'
     ]
+    @root_pos_data = null
 
     # Write new root
     @write [], (err, pos) =>
@@ -338,9 +339,10 @@ Storage::read = (pos, callback) ->
   unless isPosition pos
     return callback 'pos should be a valid position (read)'
 
-  s = parseInt pos[0], @posBase
-  l = parseInt pos[1], @posBase
-  f = parseInt pos[2], @posBase
+  posBase = @posBase
+  s = parseInt pos[0], posBase
+  l = parseInt pos[1], posBase
+  f = parseInt pos[2], posBase
 
   file = @files[f || 0]
   buff = new Buffer l
@@ -385,14 +387,24 @@ Storage::write = (data, callback) ->
   Read root page
 ###
 Storage::readRoot = (callback) ->
+  if @root_pos_data
+    callback null, @root_pos_data
+    return
+
+  cache_callback = (err, data) =>
+    if err
+      return callback err
+    @root_pos_data = data
+    callback null, data
+
   if @root_pos
-    @read @root_pos, callback
+    @read @root_pos, cache_callback
     return
 
   @readRootPos (err, pos) =>
     if err
       return callback err
-    @read pos, callback
+    @read pos, cache_callback
 
 ###
   Find last root in files and return it to callback
@@ -465,6 +477,7 @@ Storage::writeRoot = (root_pos, callback) ->
       return callback err
 
     @root_pos = root_pos
+    @root_pos_data = null
     @_fsConditionalFlush callback
 
 ###
