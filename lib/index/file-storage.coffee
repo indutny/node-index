@@ -26,6 +26,7 @@
 ###
 
 utils = require './utils'
+{LRU} = require './lru'
 step = require 'step'
 fs = require 'fs'
 path = require 'path'
@@ -40,7 +41,7 @@ DEFAULT_OPTIONS =
   rootSize: 56
   partitionSize: 1024 * 1024 * 1024
   posBase: 36
-  flushTimeout: 15000
+  flushTimeout: 1500000
   flushSize: 10000
   flushByteLimit: 10000000
 
@@ -54,19 +55,11 @@ Storage = exports.Storage = (options, callback) ->
     return callback 'Filename is required'
 
   {@posBase, @filename, @padding,
-  @partitionSize, @rootSize, @flushTimeout,
-  @flushSize} = options
+  @partitionSize, @rootSize, @lruOptions} = options
 
-  @flushTimeouted = false
+  @lru = new LRU @lruOptions
+
   @_init callback
-
-  flush = =>
-    @flushTimer = setTimeout =>
-      @flushTimeouted = true
-    , @flushTimeout
-    
-  
-  flush()
 
   # Return instance of self
   @
@@ -78,8 +71,6 @@ Storage = exports.Storage = (options, callback) ->
 Storage::_init = (callback) ->
   @files = []
   @buffer = []
-  @bufferMap = {}
-  @bufferMapBytes = 0
   @filesOffset = 0
 
   @checkCompaction (err) =>
@@ -350,16 +341,19 @@ Storage::read = (pos, callback) ->
   if not file
     return callback 'pos is incorrect'
 
-  cachedVal = @bufferMap[pos.join '-']
+  key = pos.join '-'
 
-  if cachedVal
-    cachedVal = cachedVal.slice 0, l
-    try
-      cachedVal = JSON.parse cachedVal.toString()
-      callback null, cachedVal
-      return
-    catch e
+  if not @skipLRU
+    cached = @lru.get key
 
+    if cached
+      try
+        cached = JSON.parse cached.toString()
+        process.nextTick ->
+          callback null, cached
+        return
+      catch e
+  
   fs.read file.fd, buff, 0, l, s, (err, bytesRead) ->
     if err
       return callback err
@@ -471,14 +465,13 @@ Storage::writeRoot = (root_pos, callback) ->
   hash = utils.hash buff.slice utils.hash.len
   buff.write hash, 0, 'binary'
 
-  @bufferedRoot = buff
   @_fsWrite buff, (err) =>
     if err
       return callback err
 
     @root_pos = root_pos
     @root_pos_data = null
-    @_fsConditionalFlush callback
+    @_fsFlush callback
 
 ###
   Low-level write
@@ -498,23 +491,11 @@ Storage::_fsWrite = (buff, callback) ->
 
   file.size += buff.length
 
+  if not @skipLRU
+    @lru.set pos.join('-'), buff
   @buffer.push buff
 
-  @bufferMap[pos.join '-'] = buff
-  @bufferMapBytes += buff.length
-
   callback null, pos
-
-###
-  Conditional flush
-###
-Storage::_fsConditionalFlush = (callback) ->
-  if (@buffer.length > @flushSize) or @flushTimeouted or
-     (@bufferMapBytes >  @flushByteLimit)
-    @flushTimeouted = false
-    @_fsFlush callback
-  else
-    callback null
 
 ###
   Low-level flush
@@ -523,14 +504,10 @@ Storage::_fsFlush = (callback) ->
   file = @currentFile()
   fd = file.fd
 
-  if not @bufferedRoot
-    return callback null
-
-  root = @bufferedRoot
-
   buffer = @buffer
+  root = buffer.pop()
 
-  len = -root.length
+  len = 0
   buffer.forEach (buff) ->
     len += buff.length
 
@@ -547,9 +524,6 @@ Storage::_fsFlush = (callback) ->
   root.copy(buff, len)
 
   @buffer = []
-  @bufferedRoot = null
-  @bufferMap = {}
-  @bufferMapBytes = 0
 
   buffLen = buff.length
   fs.write fd, buff, 0, buffLen, null, (err, bytesWritten) =>
@@ -589,36 +563,26 @@ Storage::currentFile = ->
 Storage::close = (callback) ->
   files = @files
 
-  clearTimeout @flushTimer
+  step () ->
+    group = @group()
 
-  @flushTimeouted = true
-
-  @_fsConditionalFlush (err) =>
-    if err
-      return callback err
-
-    step () ->
-      group = @group()
-
-      for i in [0...files.length]
-        if files[i]
-          fs.close files[i].fd, group()
-    , callback
+    for i in [0...files.length]
+      if files[i]
+        fs.close files[i].fd, group()
+  , callback
 
 ###
   Compaction flow actions
 ###
 Storage::beforeCompact = (callback) ->
-  @flushTimeouted = true
-  @_fsConditionalFlush (err) =>
-    if err
-      return callback err
-
-    @filesOffset = @files.length
-    @filename += '.compact'
-    @createFile false, callback
+  @filesOffset = @files.length
+  @filename += '.compact'
+  @createFile false, callback
+  @skipLRU = true
 
 Storage::afterCompact = (callback) ->
+  @skipLRU = false
+  @lru = new LRU @lruOptions
   that = @
   filesOffset = @filesOffset
   files = @files

@@ -2,7 +2,8 @@ var vows = require('vows'),
     assert = require('assert'),
     step = require('step'),
     coffee = require('coffee-script'),
-    fs = require('fs');
+    fs = require('fs'),
+    uuid = require('node-uuid');
 
 var index = require('../lib/index'),
     FileStorage = require('../lib/index/file-storage');
@@ -10,7 +11,8 @@ var index = require('../lib/index'),
 var I,
     fileStorage,
     filename = __dirname + '/data/fbb.db',
-    num = 100000,
+    N = 1000000,
+    dn = 10000,
     start,
     end;
 
@@ -29,7 +31,7 @@ vows.describe('Node index/fs basic benchmark').addBatch({
     'should be successfull': function(_fileStorage) {
       fileStorage = _fileStorage;
     }
-  }
+}
 }).addBatch({
   'Creating new index': {
     topic: function() {
@@ -43,92 +45,105 @@ vows.describe('Node index/fs basic benchmark').addBatch({
     }
   }
 }).addBatch({
-  'Adding 100k items': {
+  'Benchmark': {
     topic: function() {
-      step(function() {
-        var group = this.group();
-
-        start = +new Date;
-        for (var i = 0; i < num; i++) {
-          I.set(i, i, group());
-        }
-      }, this.callback);
+      benchmark(this.callback);
     },
-    'should be successfull': function() {
-      end = +new Date;
-      console.log('%d writes per second', 1000 * num / (end - start));
+    'should be successfull': function(data) {
     }
-  }
-}).addBatch({
-  'Getting 100k items': {
-    topic: function() {
-      step(function() {
-        var group = this.group();
-
-        start = +new Date;
-        for (var i = 0; i < num; i++) {
-          I.get(i, group());
-        }
-      }, this.callback);
-    },
-    'should return correct values': function(values) {
-      end = +new Date;
-      console.log('%d reads per second', 1000 * num / (end - start));
-    }
-  }
-}).addBatch({
-  'Compacting': {
-    topic: function() {
-      I.compact(this.callback);
-    },
-    'should be successfull': function() {
-    }
-  }
-}).addBatch({
-  'Getting 100k items': {
-    topic: function() {
-      step(function() {
-        var group = this.group();
-
-        start = +new Date;
-        for (var i = 0; i < num; i++) {
-          I.get(i, group());
-        }
-      }, this.callback);
-    },
-    'should return correct values': function(values) {
-      end = +new Date;
-      console.log('%d reads per second', 1000 * num / (end - start));
-    }
-  }
-}).addBatch({
-  'Adding 100k items': {
-     topic: function() {
-       step(function() {
-         var group = this.group();
-
-         start = +new Date;
-
-         var num2 = num / 3;
-         for (var i = 0; i < num2; i++) {
-           I.bulk([
-             ['prefix1:' + i, 'prefix1:' + i, 1],
-             ['prefix2:' + i, 'prefix2:' + i, 1],
-             ['prefix3:' + i, 'prefix3:' + i, 1]
-           ], group());
-         }
-       }, this.callback);
-     },
-     'should be successfull': function() {
-       end = +new Date;
-       console.log('%d writes per second (via bulk)', 3000 * num / (end - start));
-    }
-  }
-}).addBatch({
-  'Closing storage': {
-    topic: function() {
-      I.storage.close(this.callback);
-    },
-    'should be successfull': function() {}
   }
 }).export(module);
+
+function benchmark(callback) {
+  var offset = 0,
+      results = {
+        write: [],
+        read: []
+      },
+      keys = [],
+      all_keys = [],
+      times = 0,
+      readfd = fs.openSync(__dirname + '/data/read.bench', 'w'),
+      writefd = fs.openSync(__dirname + '/data/write.bench', 'w'),
+      compactfd = fs.openSync(__dirname + '/data/compact.bench', 'w');
+
+  function iterateWrite(callback) {
+    var waiting = dn,
+        i = -1;
+
+    function next() {
+      i++;
+      if (i >= dn) return callback();
+      I.set(keys[i], keys[i], next);
+    }
+
+    next();
+  };
+
+  function iterateRead(callback) {
+    var waiting = dn;
+    for (var i = 0; i < dn; i++) {
+      I.get(keys[i], function() {
+        if (--waiting == 0) callback();
+      });
+    }
+  };
+
+  function iterate(callback) {
+    var writeTotal,
+        readTotal,
+        compactTotal,
+        start = +new Date;
+
+    keys = [];
+    for (var i = 0; i < dn; i++) {
+      var ind = uuid();
+      keys.push(ind);
+      all_keys.push(ind);
+    }
+    
+    iterateWrite(function() {
+      writeTotal = +new Date - start;
+
+      times++;
+      fs.write(writefd, (offset + dn) + ',' + (1e3 * writeTotal / dn) + '\r\n');
+
+      keys = [];
+
+      for (var i = 0; i < dn; i++) {
+        keys.push(all_keys[i * times]);
+      }
+
+      start = +new Date;
+      iterateRead(function() {
+        readTotal = +new Date - start;
+
+        fs.write(readfd, (offset + dn) + ',' + (1e3 * readTotal / dn) + '\r\n');
+
+        start = +new Date;
+        I.compact(function() {
+          compactTotal = +new Date - start;
+
+          fs.write(compactfd, (offset + dn) + ',' + compactTotal + '\r\n');
+
+          callback();
+        });
+      });
+    });
+  };
+
+  function next() {
+    offset += dn;
+    if (offset < N) {
+      iterate(next);
+    } else {
+      fs.close(readfd);
+      fs.close(writefd);
+      callback(null, results);
+    }
+  };
+  
+  iterate(next);
+
+};
+

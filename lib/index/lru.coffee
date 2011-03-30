@@ -5,8 +5,8 @@
 utils = require('../index/utils')
 
 DEFAULT_OPTIONS =
-  maxSize: 400
-  normalSize: 300
+  maxSize: 8000
+  normalSize: 4000
 
 exports.LRU = LRU = (options) ->
   {@maxSize, @normalSize} = utils.merge DEFAULT_OPTIONS, options
