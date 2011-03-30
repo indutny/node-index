@@ -36,11 +36,11 @@ Buffer = require('buffer').Buffer
 ###
 DEFAULT_OPTIONS =
   filename: ''
-  padding: 32
-  rootSize: 64
+  padding: 16
+  rootSize: 56
   partitionSize: 1024 * 1024 * 1024
   posBase: 36
-  flushTimeout: 5000
+  flushTimeout: 15000
   flushSize: 10000
   flushByteLimit: 10000000
 
@@ -379,8 +379,7 @@ Storage::read = (pos, callback) ->
   Write data and return position
 ###
 Storage::write = (data, callback) ->
-  data = JSON.stringify data
-  data = new Buffer data
+  data = new Buffer JSON.stringify data
   @_fsWrite data, callback
 
 ###
@@ -528,8 +527,10 @@ Storage::_fsFlush = (callback) ->
 
   root = @bufferedRoot
 
+  buffer = @buffer
+
   len = -root.length
-  @buffer.forEach (buff) ->
+  buffer.forEach (buff) ->
     len += buff.length
 
   if len % @padding
@@ -538,10 +539,10 @@ Storage::_fsFlush = (callback) ->
 
   buff = new Buffer (len + root.length)
 
-  @buffer.reduce ((prev, curr) ->
-    curr.copy(buff, prev)
-    prev + curr.length
-  ), 0
+  offset = 0
+  for i in [0...buffer.length]
+    buffer[i].copy buff, offset
+    offset += buffer[i].length
 
   root.copy(buff, len)
 
@@ -550,8 +551,9 @@ Storage::_fsFlush = (callback) ->
   @bufferMap = {}
   @bufferMapBytes = 0
 
-  fs.write fd, buff, 0, buff.length, null, (err, bytesWritten) =>
-    if err or (bytesWritten isnt buff.length)
+  buffLen = buff.length
+  fs.write fd, buff, 0, buffLen, null, (err, bytesWritten) =>
+    if err or (bytesWritten isnt buffLen)
       @_fsCheckSize (err2) ->
         callback err2 or err or 'Written less bytes than expected'
       return

@@ -10,7 +10,7 @@ var index = require('../lib/index'),
 var I,
     fileStorage,
     filename = __dirname + '/data/fbb.db',
-    num = 10000,
+    num = 100000,
     start,
     end;
 
