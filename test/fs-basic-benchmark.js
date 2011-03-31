@@ -11,8 +11,8 @@ var index = require('../lib/index'),
 var I,
     fileStorage,
     filename = __dirname + '/data/fbb.db',
-    N = 1000000,
-    dn = 2500,
+    N = 15000000,
+    dn = 1500,
     start,
     end;
 
@@ -56,6 +56,7 @@ vows.describe('Node index/fs basic benchmark').addBatch({
 
 function benchmark(callback) {
   var offset = 0,
+      needsCompact = 0,
       results = {
         write: [],
         read: []
@@ -73,10 +74,8 @@ function benchmark(callback) {
 
     function next() {
       i++;
-      if (i % 10 == 0)
       if (i >= dn) return callback();
       I.set(keys[i], {
-        _id: keys[i],
         _rev: keys[i]
       }, next);
     }
@@ -126,20 +125,32 @@ function benchmark(callback) {
         fs.write(readfd, (offset + dn) + ',' + (1e3 * dn / readTotal) +
                  '\r\n');
 
-        start = +new Date;
-        I.compact(function() {
+
+        function next() {
           compactTotal = +new Date - start;
 
           fs.write(compactfd, (offset + dn) + ',' + compactTotal + '\r\n');
 
           callback();
-        });
+        };
+
+
+        start = +new Date;
+        if (++needsCompact > 3) {
+          needsCompact = 0;
+          I.compact(next);
+        } else {
+          next();
+        }
       });
     });
   };
 
   function next() {
     offset += dn;
+    
+    console.log('Done: %d', offset);
+
     if (offset < N) {
       iterate(next);
     } else {
