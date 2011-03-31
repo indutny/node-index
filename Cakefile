@@ -18,18 +18,17 @@ step (() ->
   build 'build', ['lib/index.coffee'], @parallel()
 
   build 'build/index', [
-    'lib/index/utils.coffee',
-    'lib/index/memory-storage.coffee',
-    'lib/index/file-storage.coffee',
-    'lib/index/lru.coffee'
+    'lib/index/utils.coffee'
+    'lib/index/memory-storage.coffee'
+    'lib/index/file-storage.coffee'
   ], @parallel()
 
   build 'build/index/core', [
-   'lib/index/core/get.coffee',
-   'lib/index/core/set.coffee',
-   'lib/index/core/unset.coffee',
-   'lib/index/core/compact.coffee',
-   'lib/index/core/bulk.coffee',
+   'lib/index/core/get.coffee'
+   'lib/index/core/set.coffee'
+   'lib/index/core/unset.coffee'
+   'lib/index/core/compact.coffee'
+   'lib/index/core/bulk.coffee'
   ], @parallel()
 
   return
