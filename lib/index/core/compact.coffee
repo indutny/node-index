@@ -50,7 +50,7 @@ exports.compact = (_callback) ->
       fns = page.map (item) ->
         ->
           step ->
-            storage.read item[1], @parallel()
+            storage.read item[1], @parallel(), in_leaf
             return
           , (err, data) ->
             if err
@@ -58,9 +58,7 @@ exports.compact = (_callback) ->
 
             if in_leaf
               # data is actual value
-              # remove old revision referense
-              data[1] = undefined
-              storage.write data, @parallel()
+              storage.write data, @parallel(), in_leaf
               return
 
             iterate(@parallel()) null, data

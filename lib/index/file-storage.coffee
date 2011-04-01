@@ -323,7 +323,7 @@ Storage::createFile = (writeRoot, callback) ->
 ###
   Read data from position
 ###
-Storage::read = (pos, callback) ->
+Storage::read = (pos, callback, raw) ->
   unless isPosition pos
     return callback 'pos should be a valid position (read)'
 
@@ -342,7 +342,8 @@ Storage::read = (pos, callback) ->
 
   if cached
     try
-      cached = JSON.parse cached.toString()
+      unless raw
+        cached = JSON.parse cached.toString()
       callback null, cached
       return
     catch e
@@ -354,19 +355,24 @@ Storage::read = (pos, callback) ->
     unless bytesRead == l
       return callback 'Read less bytes than expected'
 
-    try
-      buff = JSON.parse buff.toString()
-      err = null
-    catch e
-      err = 'Data is not a valid json'
+    unless raw
+      try
+        buff = JSON.parse buff.toString()
+        err = null
+      catch e
+        err = 'Data is not a valid json'
 
     callback err, buff
 
 ###
   Write data and return position
 ###
-Storage::write = (data, callback) ->
-  data = new Buffer JSON.stringify data
+Storage::write = (data, callback, raw) ->
+  if raw and not Buffer.isBuffer data
+    return callback 'In raw mode data should be a buffer'
+    
+  unless raw
+    data = new Buffer JSON.stringify data
   @_fsWrite data, callback
 
 ###
