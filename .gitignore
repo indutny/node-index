@@ -1,5 +1,7 @@
 *.swp
 test/data/*
 !test/data/.keep
+node_modules
+node_modules/*
 build/*
 
