@@ -7,8 +7,8 @@ This module is a implementation of a append-only B+ Tree fully written in
 Benchmark
 ---------
 
-![read benchmark](https://github.com/donnerjack13589/node-index/raw/master/stub/chart_read.png)
-![write benchmark](https://github.com/donnerjack13589/node-index/raw/master/stub/chart_write.png)
+![read benchmark](https://github.com/indutny/node-index/raw/master/stub/chart_read.png)
+![write benchmark](https://github.com/indutny/node-index/raw/master/stub/chart_write.png)
 
 Basics
 ------
