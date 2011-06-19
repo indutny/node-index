@@ -52,10 +52,10 @@ exports.bulk = (kvs, _callback) ->
 
     process.nextTick ->
       _callback and _callback err, conflicts
-  
+
   # conflicts
   conflicts = []
-  
+
   # clone kvs
   kvs = [].concat kvs
   # sort kvs
@@ -113,7 +113,7 @@ exports.bulk = (kvs, _callback) ->
             else
               kps[0][0] = item[0]
               page.splice.apply page, [index, 1].concat kps
-         
+
             _iterate(null, page)
           , _kvs
         )
@@ -187,7 +187,7 @@ splitPage = (page, order, storage, callback) ->
 
   step ->
     group = @group()
-    
+
     for page in pages
       pre_page = [].concat page
       if not page[0][2]

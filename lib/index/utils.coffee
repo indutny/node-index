@@ -42,7 +42,7 @@ merge = utils.merge = (a, b) ->
     unless a.hasOwnProperty k
       continue
     c[k] = v
-  
+
   for k, v of b
     unless b.hasOwnProperty k
       continue
@@ -56,9 +56,8 @@ merge = utils.merge = (a, b) ->
 ###
   Perform a binary search in following array
   [[key, value], [key, value], ...]
- 
+
   @return value or undefined.
- 
 ###
 utils.search = (index, sort, key) ->
   len = index.length - 1

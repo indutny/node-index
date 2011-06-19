@@ -34,7 +34,7 @@ exports.compact = (_callback) ->
 
   callback = (err, data) =>
     @releaseLock()
-    
+
     process.nextTick ->
       _callback and _callback err, data
 
@@ -78,11 +78,11 @@ exports.compact = (_callback) ->
 
         storage.write page, @parallel()
         return
-      
+
       fns.push callback
 
       step.apply null, fns
-    
+
 
   step ->
     # will allow storage controller

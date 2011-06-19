@@ -40,13 +40,13 @@ exports.set = (key, value, _callback) ->
 
   if @lock(=> @set key, value, _callback)
     return
-  
+
   callback = (err, data) =>
     @releaseLock()
 
     process.nextTick ->
       _callback and _callback err, data
-  
+
 
   iterate = (page, callback) ->
     item_index = utils.search page, sort, key
@@ -84,7 +84,7 @@ exports.set = (key, value, _callback) ->
                       [result.middle_key, result.right_page]
 
           splitPage false, storage, order, page, callback
-      
+
     else
       # Leaf
       step ->
@@ -122,7 +122,7 @@ exports.set = (key, value, _callback) ->
         page.splice item_index, 0, [key, value, 1]
 
         splitPage true, storage, order, page, callback
-      
+
 
   step ->
     # Read initial data

@@ -16,6 +16,7 @@
   "main": "./build/index",
 
   "scripts": {
-    "install": "cake"
+    "install": "cake",
+    "test": "vows --spec test/*-test.js"
   }
 }

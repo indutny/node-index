@@ -2,7 +2,7 @@
   Get functionality for Node Index module
 
   This software is licensed under the MIT License.
-  
+
   Copyright Fedor Indutny, 2011.
 
   Permission is hereby granted, free of charge, to any person obtaining a
@@ -45,7 +45,7 @@ exports.get = (key, callback) ->
     # Item not found
     unless item
       return callback 'Not found'
-    
+
     value = item[1]
 
     if item[2]
@@ -72,7 +72,7 @@ exports.get = (key, callback) ->
     true - if `traverse` should go deeper
     undefined - if `traverse` should skip element
     false - if `traverse` should stop traversing and return to higher level
- 
+
   filter can
   @return promise.
 ###
@@ -80,7 +80,7 @@ exports.get = (key, callback) ->
 exports.traverse = (filter) ->
   that = @
   promise = new process.EventEmitter
-  
+
   # If no filter were provided - match all
   filter = filter || (kp, callback) -> callback(null, true)
 
@@ -104,11 +104,11 @@ exports.traverse = (filter) ->
               callback null
             else
               promise.emit 'end'
-            
+
             return
 
           current = page[index]
-          
+
           filter.call that, current, (err, filter_value) ->
             if filter_value is true
               if current[2]
@@ -117,17 +117,17 @@ exports.traverse = (filter) ->
                   # value = [value, link-to-previous-value]
                   promise.emit 'data', value[0], current
                   asyncFilter()
-                
+
               else
                 # go deeper
                 storage.read current[1], iterate asyncFilter
-              
+
             else
               if filter_value is false
                 index = pagelen
-              
+
               asyncFilter()
-            
+
         asyncFilter()
 
     storage.readRoot iterate()
@@ -156,7 +156,7 @@ exports.rangeGet = (start_key, end_key) ->
         return callback null, true
       if end_cmp > 0
         return callback null, false
-    
+
     callback null
 
   traverse_promise.on 'data', (value) ->
