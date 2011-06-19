@@ -200,7 +200,7 @@ Storage::iterateFiles = (filename, callback) ->
         callback err
       else if file isnt null
         process.nextTick iterate
-    
+
   next()
 
 ###
@@ -224,7 +224,7 @@ Storage::openFile = (callback) ->
     if err
       @paralell() err
       return
-    
+
     unless exists
       @parallel() null
       return
@@ -243,7 +243,7 @@ Storage::openFile = (callback) ->
 
     index = files.length
 
-    
+
     file =
       filename: filename
       fd: fd
@@ -301,7 +301,7 @@ Storage::createFile = (writeRoot, callback) ->
 
     unless writeRoot
       return callback null, @
-    
+
     @root_pos = [
       '0',
       '2',
@@ -317,7 +317,7 @@ Storage::createFile = (writeRoot, callback) ->
       @writeRoot pos, (err) =>
         if err
           return callback err
-       
+
         callback null, @
 
 ###
@@ -347,7 +347,7 @@ Storage::read = (pos, callback, raw) ->
       callback null, cached
       return
     catch e
-    
+
   fs.read file.fd, buff, 0, l, s, (err, bytesRead) ->
     if err
       return callback err
@@ -370,7 +370,7 @@ Storage::read = (pos, callback, raw) ->
 Storage::write = (data, callback, raw) ->
   if raw and not Buffer.isBuffer data
     return callback 'In raw mode data should be a buffer'
-    
+
   unless raw
     data = new Buffer JSON.stringify data
   @_fsWrite data, callback
@@ -439,7 +439,7 @@ Storage::readRootPos = (callback) ->
 
     process.nextTick () ->
       iterate (index - 1), callback
-  
+
   checkHash = (buff) ->
     hash = buff.slice(0, utils.hash.len).toString()
     rest = buff.slice(utils.hash.len)
@@ -477,7 +477,7 @@ Storage::writeRoot = (root_pos, callback) ->
   Low-level write
 
   buff - is Buffer
-  
+
 ###
 Storage::_fsWrite = (buff, callback) ->
   file = @currentFile()
@@ -489,7 +489,7 @@ Storage::_fsWrite = (buff, callback) ->
   ]
 
   file.size += buff.length
-  
+
   @buffersHashmap[pos.join '-'] = buff
 
   @_fsBuffer buff, false, (err) ->
@@ -525,7 +525,7 @@ Storage::_fsBuffer = (buff, isRoot, callback) ->
 ###
   Flush buffered data to disk
 ###
-Storage::_fsFlush = (callback) ->
+Storage::_fsFlush = (callback, compacting) ->
   file = @currentFile()
   fd = file.fd
 
@@ -547,9 +547,8 @@ Storage::_fsFlush = (callback) ->
         callback err2 or err or 'Written less bytes than expected'
       return
 
-    if file.size >= @partitionSize
-      @createFile false, (err) ->
-        callback err
+    if file.size >= @partitionSize and not compacting
+      @createFile false, callback
     else
       callback null
 
@@ -562,7 +561,7 @@ Storage::_fsCheckSize = (callback)->
   fs.stat filename, (err, stat) =>
     if err
       return callback err
-    
+
     file.size = stat.size
     callback null
 
@@ -584,7 +583,7 @@ Storage::close = (callback) ->
 
     step () ->
       group = @group()
-  
+
       for i in [0...files.length]
         if files[i]
           fs.close files[i].fd, group()
@@ -594,12 +593,15 @@ Storage::close = (callback) ->
   Compaction flow actions
 ###
 Storage::beforeCompact = (callback) ->
-  @filesOffset = @files.length
   @filename += '.compact'
+  @filesOffset = @files.length
+
   @_fsFlush (err) =>
     if err
       return callback err
+
     @createFile false, callback
+  , true
 
 Storage::afterCompact = (callback) ->
   that = @
@@ -624,7 +626,7 @@ Storage::afterCompact = (callback) ->
     , (err) ->
       if err
         throw err
-       
+
       fnsQueue = []
       compactedCount = files.length - filesOffset
       [0...compactedCount].forEach (i) ->
@@ -636,7 +638,7 @@ Storage::afterCompact = (callback) ->
         fnsQueue.unshift (err) ->
           if err
             throw err
-        
+
           fs.rename compactedName, normalName, @parallel()
           return
 
