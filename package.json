@@ -1,7 +1,7 @@
 {
   "name": "index",
-  "description": "...",
-  "version": "0.0.1",
+  "description": "Append only B+ Tree Index engine for node.js",
+  "version": "0.1.0",
 
   "author": "Fedor Indutny <fedor.indutny@gmail.com>",
 
