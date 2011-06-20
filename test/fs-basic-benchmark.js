@@ -136,7 +136,7 @@ function benchmark(callback) {
 
 
         start = +new Date;
-        if (++needsCompact > 6) {
+        if (++needsCompact > 20) {
           needsCompact = 0;
           I.compact(next);
         } else {
