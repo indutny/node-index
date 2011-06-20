@@ -508,11 +508,8 @@ Storage::_fsBuffer = (buff, isRoot, callback) ->
     if file.size % @padding
       delta = @padding - (file.size % @padding)
 
-      _buff = buff
-
       buffLen += delta
-      buff = new Buffer buffLen
-      _buff.copy buff, delta
+      @buffers.push new Buffer delta
     file.size += buffLen
 
   @buffers.push buff
