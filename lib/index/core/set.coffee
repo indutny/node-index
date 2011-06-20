@@ -118,7 +118,7 @@ exports.set = (key, value, _callback) ->
         if err
           throw err
 
-        # Than inserted in leaf page
+        # Then inserted in leaf page
         page.splice item_index, 0, [key, value, 1]
 
         splitPage true, storage, order, page, callback
