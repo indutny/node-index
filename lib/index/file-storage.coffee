@@ -27,6 +27,7 @@
 
 utils = require './utils'
 step = require 'step'
+async = require 'async'
 fs = require 'fs'
 path = require 'path'
 Buffer = require('buffer').Buffer
@@ -511,8 +512,7 @@ Storage::_fsBuffer = (buff, isRoot, callback) ->
       _buff = buff
 
       buffLen += delta
-      buff = new Buffer buffLen
-      _buff.copy buff, delta
+      @buffers.push new Buffer delta
     file.size += buffLen
 
   @buffers.push buff
@@ -530,21 +530,25 @@ Storage::_fsFlush = (callback, compacting) ->
   fd = file.fd
 
   buffLen = @buffersBytes
-  buff = new Buffer buffLen
-  offset = 0
   buffers = @buffers
-  for i in [0...buffers.length]
-    buffers[i].copy buff, offset
-    offset += buffers[i].length
 
   @buffers = []
   @buffersBytes = 0
   @buffersHashmap = {}
 
-  fs.write fd, buff, 0, buffLen, null, (err, bytesWritten) =>
-    if err or (bytesWritten isnt buffLen)
+  step ->
+    async.forEachSeries buffers, (buff, callback) ->
+      len = buff.length
+      fs.write fd, buff, 0, len, null, (err, written) ->
+        if err or (written isnt len)
+          callback err or 'Written less bytes than expected'
+        else
+          callback null
+    , @parallel()
+  , (err) =>
+    if err
       @_fsCheckSize (err2) ->
-        callback err2 or err or 'Written less bytes than expected'
+        callback err2 or err
       return
 
     if file.size >= @partitionSize and not compacting
