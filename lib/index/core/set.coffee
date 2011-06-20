@@ -65,7 +65,8 @@ exports.set = (key, value, _callback) ->
         iterate page, @parallel()
       , (err, result) ->
         if err
-          throw err
+          callback err
+          return
 
         if storage.isPosition result
           # Page is just should be overwrited
@@ -116,7 +117,8 @@ exports.set = (key, value, _callback) ->
         storage.write [value, old_value], @parallel()
       , (err, value) ->
         if err
-          throw err
+          callback err
+          return
 
         # Then inserted in leaf page
         page.splice item_index, 0, [key, value, 1]

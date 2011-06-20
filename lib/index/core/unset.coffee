@@ -84,7 +84,8 @@ exports.unset = (key, _callback) ->
         iterate page, @parallel()
       , (err, result) ->
         if err
-          throw err
+          callback err
+          return
 
         if result is false
           # Delete item from index page
