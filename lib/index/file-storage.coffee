@@ -344,7 +344,7 @@ Storage::read = (pos, callback, raw) ->
   if cached
     try
       unless raw
-        cached = JSON.parse cached.toString()
+        cached = JSON.parse cached
       callback null, cached
       return
     catch e
@@ -491,7 +491,7 @@ Storage::_fsWrite = (buff, callback) ->
 
   file.size += buff.length
 
-  @buffersHashmap[pos.join '-'] = buff
+  @buffersHashmap[pos.join '-'] = buff.toString()
 
   @_fsBuffer buff, false, (err) ->
     callback err, pos
