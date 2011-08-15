@@ -29,6 +29,8 @@ utils = require './utils'
 step = require 'step'
 fs = require 'fs'
 path = require 'path'
+msgpack = require 'msgpack-0.4'
+
 Buffer = require('buffer').Buffer
 
 ###
@@ -36,10 +38,9 @@ Buffer = require('buffer').Buffer
 ###
 DEFAULT_OPTIONS =
   filename: ''
-  padding: 14
-  rootSize: 56
+  padding: 12
+  rootSize: 48
   partitionSize: 1024 * 1024 * 1024
-  posBase: 36
   flushMinBytes: 4 * 1024 * 1024
 
 ###
@@ -51,7 +52,7 @@ Storage = exports.Storage = (options, callback) ->
   unless options.filename
     return callback 'Filename is required'
 
-  {@posBase, @filename, @padding,
+  {@filename, @padding,
   @partitionSize, @rootSize, @flushMinBytes} = options
 
   @_init callback
@@ -327,10 +328,9 @@ Storage::read = (pos, callback, raw) ->
   unless isPosition pos
     return callback 'pos should be a valid position (read)'
 
-  posBase = @posBase
-  s = parseInt pos[0], posBase
-  l = parseInt pos[1], posBase
-  f = parseInt pos[2], posBase
+  s = pos[0]
+  l = pos[1]
+  f = pos[2]
 
   file = @files[f || 0]
   buff = new Buffer l
@@ -343,7 +343,7 @@ Storage::read = (pos, callback, raw) ->
   if cached
     try
       unless raw
-        cached = JSON.parse cached
+        cached = msgpack.unpack cached
       callback null, cached
       return
     catch e
@@ -357,7 +357,7 @@ Storage::read = (pos, callback, raw) ->
 
     unless raw
       try
-        buff = JSON.parse buff.toString()
+        buff = msgpack.unpack buff
         err = null
       catch e
         err = 'Data is not a valid json'
@@ -372,7 +372,7 @@ Storage::write = (data, callback, raw) ->
     return callback 'In raw mode data should be a buffer'
 
   unless raw
-    data = new Buffer JSON.stringify data
+    data = new Buffer msgpack.pack data
   @_fsWrite data, callback
 
 ###
@@ -427,9 +427,9 @@ Storage::readRootPos = (callback) ->
         break
 
       if data = checkHash buff
-        root = data.split('\t', 1)[0]
+        root = data
         try
-          root = JSON.parse root
+          root = msgpack.unpack root
         catch e
           # Header is not JSON
           # Try in previous file
@@ -443,7 +443,7 @@ Storage::readRootPos = (callback) ->
   checkHash = (buff) ->
     hash = buff.slice(0, utils.hash.len).toString()
     rest = buff.slice(utils.hash.len)
-    rest.toString() if hash == utils.hash rest
+    rest if hash == utils.hash rest
 
   iterate (@files.length - 1), callback
 
@@ -454,12 +454,9 @@ Storage::writeRoot = (root_pos, callback) ->
   unless isPosition root_pos
     return callback 'pos should be a valid position (writeRoot)'
 
-  _root_pos = JSON.stringify root_pos
-  _root_pos_len = Buffer.byteLength _root_pos
-  _padding_len = @rootSize - _root_pos_len
-  _root_pos = [_root_pos].concat(new Array _padding_len).join '\t'
+  _root_pos = msgpack.pack root_pos
   buff = new Buffer @rootSize
-  buff.write _root_pos, utils.hash.len
+  _root_pos.copy buff, utils.hash.len
 
   hash = utils.hash buff.slice utils.hash.len
   buff.write hash, 0, 'binary'
@@ -483,14 +480,14 @@ Storage::_fsWrite = (buff, callback) ->
   file = @currentFile()
 
   pos = [
-    file.size.toString(@posBase),
-    buff.length.toString(@posBase),
-    file.index.toString(@posBase)
+    file.size,
+    buff.length,
+    file.index
   ]
 
   file.size += buff.length
 
-  @buffersHashmap[pos.join '-'] = buff.toString()
+  @buffersHashmap[pos.join '-'] = buff
 
   @_fsBuffer buff, false, (err) ->
     callback err, pos

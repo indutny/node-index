@@ -8,6 +8,9 @@
   "dependencies": {
     "coffee-script": ">= 1.0.1",
     "step": ">= 0.0.4",
+    "msgpack-0.4": ">= 0.1.4"
+  },
+  "devDependencies": {
     "vows": ">= 0.5.8"
   },
 
