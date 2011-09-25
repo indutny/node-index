@@ -29,7 +29,26 @@ utils = require './utils'
 step = require 'step'
 fs = require 'fs'
 path = require 'path'
-msgpack = require 'msgpack-0.4'
+packer =
+  pack: (data) ->
+    data = JSON.stringify data
+    size = Buffer.byteLength data
+    result = new Buffer(size + 4)
+
+    # Put size
+    result[0] = (size >> 24) & 0xff
+    result[1] = (size >> 16) & 0xff
+    result[2] = (size >> 8) & 0xff
+    result[3] = size & 0xff
+
+    # Put data
+    result.write data, 4
+
+    # Return result
+    result
+  unpack: (data) ->
+    size = (data[0] << 24) + (data[1] << 16) + (data[2] << 8) + data[3]
+    JSON.parse (data.slice 4, (4 + size)).toString()
 
 Buffer = require('buffer').Buffer
 
@@ -38,8 +57,8 @@ Buffer = require('buffer').Buffer
 ###
 DEFAULT_OPTIONS =
   filename: ''
-  padding: 12
-  rootSize: 48
+  padding: 8
+  rootSize: 64
   partitionSize: 1024 * 1024 * 1024
   flushMinBytes: 4 * 1024 * 1024
 
@@ -343,7 +362,7 @@ Storage::read = (pos, callback, raw) ->
   if cached
     try
       unless raw
-        cached = msgpack.unpack cached
+        cached = packer.unpack cached
       callback null, cached
       return
     catch e
@@ -357,7 +376,7 @@ Storage::read = (pos, callback, raw) ->
 
     unless raw
       try
-        buff = msgpack.unpack buff
+        buff = packer.unpack buff
         err = null
       catch e
         err = 'Data is not a valid json'
@@ -372,7 +391,7 @@ Storage::write = (data, callback, raw) ->
     return callback 'In raw mode data should be a buffer'
 
   unless raw
-    data = new Buffer msgpack.pack data
+    data = new Buffer packer.pack data
   @_fsWrite data, callback
 
 ###
@@ -429,7 +448,7 @@ Storage::readRootPos = (callback) ->
       if data = checkHash buff
         root = data
         try
-          root = msgpack.unpack root
+          root = packer.unpack root
         catch e
           # Header is not JSON
           # Try in previous file
@@ -454,7 +473,7 @@ Storage::writeRoot = (root_pos, callback) ->
   unless isPosition root_pos
     return callback 'pos should be a valid position (writeRoot)'
 
-  _root_pos = msgpack.pack root_pos
+  _root_pos = packer.pack root_pos
   buff = new Buffer @rootSize
   _root_pos.copy buff, utils.hash.len
 
