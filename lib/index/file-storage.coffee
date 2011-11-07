@@ -36,10 +36,7 @@ packer =
     result = new Buffer(size + 4)
 
     # Put size
-    result[0] = (size >> 24) & 0xff
-    result[1] = (size >> 16) & 0xff
-    result[2] = (size >> 8) & 0xff
-    result[3] = size & 0xff
+    result.writeUInt32LE size, 0
 
     # Put data
     result.write data, 4
@@ -47,7 +44,7 @@ packer =
     # Return result
     result
   unpack: (data) ->
-    size = (data[0] << 24) + (data[1] << 16) + (data[2] << 8) + data[3]
+    size = data.readUInt32LE 0
     JSON.parse (data.slice 4, (4 + size)).toString()
 
 Buffer = require('buffer').Buffer
