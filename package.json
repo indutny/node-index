@@ -1,7 +1,7 @@
 {
   "name": "index",
   "description": "Append only B+ Tree Index engine for node.js",
-  "version": "0.3.0",
+  "version": "0.4.0",
 
   "author": "Fedor Indutny <fedor.indutny@gmail.com>",
 
@@ -13,7 +13,7 @@
     "vows": ">= 0.5.8"
   },
 
-  "engine": ["node >= 0.4.0"],
+  "engine": ["node >= 0.6.0"],
 
   "main": "./build/index",
 
